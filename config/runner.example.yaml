@@ -1,0 +1,24 @@
+protocol_version: "0.1"
+runner:
+  logical_name: "allaiso-qa-machine"
+  labels:
+    - "allaiso-qa"
+  max_parallel_runs: 1
+executor:
+  adapter: "opencloud"
+  command: null  # discover from the installed OpenCloud version; do not guess
+  workspace_root: "./.runtime"
+  default_timeout_seconds: 900
+browser:
+  isolated_profile_per_run: true
+  headless: false
+security:
+  allowed_project_ids: []  # explicit allowlist before real AUT execution
+  allow_production_targets: false
+  allow_destructive_actions: false
+  redact_secrets: true
+evidence:
+  screenshots: "on_failure_and_checkpoints"
+  console: "when_supported"
+  network_metadata: "when_supported"
+  trace: "when_supported"
