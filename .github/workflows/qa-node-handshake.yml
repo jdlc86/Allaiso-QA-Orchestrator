@@ -1,0 +1,36 @@
+name: QA Node Handshake
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: allaiso-qa-node-handshake
+  cancel-in-progress: false
+
+jobs:
+  handshake:
+    # Deliberately requires the dedicated label so this cannot land on an arbitrary runner.
+    runs-on: [self-hosted, allaiso-qa]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+
+      - name: Workstation probe
+        shell: bash
+        run: python3 scripts/node_probe.py || python scripts/node_probe.py
+
+      - name: Validate dependency-free smoke contract
+        shell: bash
+        run: python3 scripts/validate_job.py examples/jobs/smoke-demo.json || python scripts/validate_job.py examples/jobs/smoke-demo.json
+
+      - name: Upload probe only
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-node-handshake-${{ github.run_id }}
+          path: .runtime/node-probe.json
+          if-no-files-found: error
+          retention-days: 7
