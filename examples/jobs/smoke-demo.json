@@ -1,0 +1,21 @@
+{
+  "protocol_version": "0.1",
+  "job_id": "demo-smoke-0001",
+  "run_id": "demo-smoke-run-0001",
+  "project_id": "demo",
+  "requested_by": "bootstrap-orchestrator",
+  "objective": "Prove that the QA node can navigate, inspect a harmless page, and capture evidence.",
+  "environment": "test",
+  "mode": "steps",
+  "preconditions": ["A supported browser is available."],
+  "steps": [
+    {"id":"open","action":"Navigate to a harmless test page chosen/configured by the operator.","expect":"The page loads without browser-level navigation error."},
+    {"id":"inspect","action":"Read the page title and one visible heading without modifying the page.","expect":"Title/heading can be returned as structured observations."},
+    {"id":"capture","action":"Capture a screenshot.","expect":"Screenshot is stored under the run evidence directory."}
+  ],
+  "assertions": ["Navigation completed successfully.","At least one visible semantic element was read.","A screenshot was captured."],
+  "diagnostics": ["If navigation fails, capture the browser error and current URL, then stop.","If semantic inspection is unsupported, report BLOCKED and name the missing capability."],
+  "evidence": ["screenshot"],
+  "timeout_seconds": 120,
+  "safety": {"destructive_actions":false,"production_writes":false,"notes":"Bootstrap only; no authentication or mutation."}
+}
