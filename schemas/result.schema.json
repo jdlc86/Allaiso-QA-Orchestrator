@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://allaiso.local/schemas/result.schema.json",
+  "title": "Allaiso QA Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "job_id", "run_id", "project_id", "executor", "started_at", "finished_at", "status", "assertions", "evidence", "summary"],
+  "properties": {
+    "protocol_version": {"type": "string", "const": "0.1"},
+    "job_id": {"type": "string"},
+    "run_id": {"type": "string"},
+    "project_id": {"type": "string"},
+    "executor": {"type": "string"},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "status": {"type": "string", "enum": ["PASSED", "FAILED", "BLOCKED", "ERROR", "CANCELLED"]},
+    "steps": {"type": "array", "items": {"type": "object", "required": ["id", "status", "observation"], "properties": {"id": {"type": "string"}, "status": {"type": "string", "enum": ["PASSED", "FAILED", "BLOCKED", "ERROR", "SKIPPED"]}, "observation": {"type": "string"}}, "additionalProperties": false}},
+    "assertions": {"type": "array", "items": {"type": "object", "required": ["assertion", "passed"], "properties": {"assertion": {"type": "string"}, "passed": {"type": "boolean"}, "observation": {"type": "string"}}, "additionalProperties": false}},
+    "diagnostics": {"type": "array", "items": {"type": "string"}},
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "error": {"type": ["string", "null"]},
+    "summary": {"type": "string"}
+  }
+}
