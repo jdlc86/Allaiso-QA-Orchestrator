@@ -1,0 +1,24 @@
+# Local executor state
+.runtime/
+config/runner.yaml
+.env
+.env.*
+!.env.example
+
+# Credentials / browser state
+secrets/
+profiles/
+*.pem
+*.key
+
+# Python / Node
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
