@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import unittest
+from unittest.mock import Mock
 
-from executor import Browser, snapshot_semantics
+from executor import Browser, InfrastructureFailure, snapshot_semantics
 
 
 class SnapshotSemanticsTests(unittest.TestCase):
@@ -46,6 +47,13 @@ class BrowserReadinessTests(unittest.TestCase):
         self.assertFalse(Browser.status_ready({"running": True, "cdpReady": False}))
         self.assertFalse(Browser.status_ready({"running": False, "cdpReady": True}))
         self.assertFalse(Browser.status_ready(None))
+
+    def test_status_timeout_becomes_diagnostic_not_abort(self):
+        browser = object.__new__(Browser)
+        browser.run = Mock(side_effect=InfrastructureFailure("status timeout"))
+        status, diagnostic = browser.status()
+        self.assertIsNone(status)
+        self.assertEqual(diagnostic, "status timeout")
 
 
 if __name__ == "__main__":
