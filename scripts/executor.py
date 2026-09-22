@@ -34,11 +34,13 @@ PROJECT_POLICIES = {
         "environment": "test",
         "allowed_url_prefixes": ("https://example.com/",),
         "browser_profile": "qa-demo-public",
+        "browser_cdp_port": 18890,
     },
     "gestionpisos": {
         "environment": "test",
         "allowed_url_prefixes": ("https://jdlc86.github.io/gestionpisos/",),
         "browser_profile": "qa-gestionpisos-public",
+        "browser_cdp_port": 18891,
     },
 }
 
@@ -164,6 +166,18 @@ def project_browser_profile(project_id: str) -> str:
     return profile
 
 
+def project_browser_port(project_id: str) -> int:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+    port = policy.get("browser_cdp_port")
+    if not isinstance(port, int) or not 18800 <= port <= 18899:
+        raise BlockedFailure(
+            f"Project {project_id!r} has an invalid managed-browser CDP port policy."
+        )
+    return port
+
+
 def validate_target_url(project_id: str, url: str) -> None:
     policy = PROJECT_POLICIES.get(project_id)
     if policy is None:
@@ -283,10 +297,16 @@ def media_path(stdout: str) -> Optional[Path]:
 
 
 class Browser:
-    def __init__(self, deadline: float, profile: str = "openclaw") -> None:
+    def __init__(
+        self,
+        deadline: float,
+        profile: str = "openclaw",
+        profile_port: Optional[int] = None,
+    ) -> None:
         self.binary = find_openclaw()
         self.deadline = deadline
         self.profile = profile
+        self.profile_port = profile_port
 
     def run(self, args: list[str], timeout_ms: int = 30000, json_output: bool = False):
         remaining = self.deadline - time.monotonic()
@@ -328,6 +348,36 @@ class Browser:
             )
         return stdout, parsed
 
+    def run_cli(
+        self,
+        args: list[str],
+        timeout_ms: int = 30000,
+        json_output: bool = False,
+    ):
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise InfrastructureFailure("Job timeout expired.")
+        request_ms = max(1000, min(timeout_ms, int(remaining * 1000)))
+        command = [self.binary, *args]
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=repo_root(),
+                shell=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=max(1.0, min(remaining, request_ms / 1000 + 12)),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise InfrastructureFailure(
+                f"OpenClaw CLI command timed out: {' '.join(args)}"
+            ) from exc
+        stdout = redact((completed.stdout or "").strip())
+        stderr = redact((completed.stderr or "").strip())
+        return completed.returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
+
     def run_unscoped(
         self,
         args: list[str],
@@ -363,35 +413,71 @@ class Browser:
         stderr = redact((completed.stderr or "").strip())
         return completed.returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
 
-    @staticmethod
-    def profile_already_exists(detail: str) -> bool:
-        return bool(re.search(r"(?i)\balready\s+exists\b", detail or ""))
-
     def ensure_profile(self) -> None:
-        # Avoid the global `profiles` enumeration here. On the Windows QA
-        # runner that command has reproducibly exhausted its request timeout,
-        # while scoped profile commands remain usable. Probe only the selected
-        # allowlisted profile and fall back to idempotent creation.
+        # Persistent browser-profile mutations are rejected when browser
+        # requests are routed through a node proxy. Provision the named local
+        # managed profile through OpenClaw's config surface instead, then use
+        # browser.request only for lifecycle and page operations.
         status, _ = self.status(timeout_ms=5000)
         if status is not None:
             return
 
-        rc, stdout, stderr, _ = self.run_unscoped(
-            ["create-profile", "--name", self.profile],
-            30000,
-            False,
+        if self.profile_port is None:
+            raise InfrastructureFailure(
+                f"No CDP port is reserved for isolated profile {self.profile!r}."
+            )
+
+        config_path = f"browser.profiles.{self.profile}.cdpPort"
+        rc, stdout, stderr, parsed = self.run_cli(
+            ["config", "get", config_path, "--json"],
+            15000,
+            True,
         )
         if rc == 0:
+            configured_port = parsed if isinstance(parsed, int) else None
+            if configured_port != self.profile_port:
+                raise InfrastructureFailure(
+                    f"OpenClaw profile {self.profile!r} already exists with "
+                    f"unexpected cdpPort={configured_port!r}; expected "
+                    f"{self.profile_port}."
+                )
             return
 
         detail = stderr or stdout or "no diagnostic output"
-        if self.profile_already_exists(detail):
-            return
-
-        raise InfrastructureFailure(
-            f"OpenClaw could not ensure isolated profile {self.profile!r} "
-            f"(rc={rc}): {detail}"
+        missing = "Config path not found" in detail or (
+            isinstance(parsed, dict)
+            and "Config path not found" in str(parsed.get("error", ""))
         )
+        if not missing:
+            raise InfrastructureFailure(
+                f"OpenClaw config lookup failed for profile {self.profile!r} "
+                f"(rc={rc}): {detail}"
+            )
+
+        rc, stdout, stderr, _ = self.run_cli(
+            [
+                "config",
+                "set",
+                config_path,
+                str(self.profile_port),
+                "--strict-json",
+            ],
+            30000,
+            False,
+        )
+        if rc != 0:
+            detail = stderr or stdout or "no diagnostic output"
+            raise InfrastructureFailure(
+                f"OpenClaw could not provision isolated profile "
+                f"{self.profile!r} in local config (rc={rc}): {detail}"
+            )
+
+        status, diagnostic = self.status(timeout_ms=15000)
+        if status is None:
+            raise InfrastructureFailure(
+                f"OpenClaw profile {self.profile!r} was configured but is not "
+                f"addressable: {diagnostic}"
+            )
 
     def status(self, timeout_ms: int = 15000) -> tuple[Optional[dict[str, Any]], str]:
         try:
@@ -489,7 +575,11 @@ def main() -> int:
         validate_job(job)
 
         deadline = time.monotonic() + int(job.get("timeout_seconds", 900))
-        browser = Browser(deadline, profile=project_browser_profile(project_id))
+        browser = Browser(
+            deadline,
+            profile=project_browser_profile(project_id),
+            profile_port=project_browser_port(project_id),
+        )
         browser.start()
         label = safe_label(run_id)
 
