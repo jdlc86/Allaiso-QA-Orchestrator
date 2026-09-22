@@ -1,0 +1,49 @@
+{
+  "protocol_version": "0.1",
+  "job_id": "gestionpisos-public-smoke",
+  "run_id": "gestionpisos-public-smoke",
+  "project_id": "gestionpisos",
+  "requested_by": "chatgpt-orchestrator",
+  "objective": "Prove that the public GestionPisos / Allaiso PWA can be opened and inspected by the QA node without authentication or mutation.",
+  "environment": "test",
+  "mode": "steps",
+  "preconditions": [
+    "The GitHub Pages deployment is publicly reachable.",
+    "No authenticated session is required for this smoke."
+  ],
+  "steps": [
+    {
+      "id": "open",
+      "action": "Navigate to https://jdlc86.github.io/gestionpisos/",
+      "expect": "The PWA entry point loads without browser-level navigation error."
+    },
+    {
+      "id": "inspect",
+      "action": "Read the page title and one visible heading without modifying the page.",
+      "expect": "The deployed PWA exposes readable semantic content."
+    },
+    {
+      "id": "capture",
+      "action": "Capture a screenshot.",
+      "expect": "Screenshot evidence is stored under the run evidence directory."
+    }
+  ],
+  "assertions": [
+    "Navigation completed successfully.",
+    "At least one visible semantic element was read.",
+    "A screenshot was captured."
+  ],
+  "diagnostics": [
+    "If navigation fails, capture the browser error and stop.",
+    "If semantic inspection fails, capture the current page and stop."
+  ],
+  "evidence": [
+    "screenshot"
+  ],
+  "timeout_seconds": 300,
+  "safety": {
+    "destructive_actions": false,
+    "production_writes": false,
+    "notes": "Public read-only activation smoke. No login, form submission, or mutation."
+  }
+}

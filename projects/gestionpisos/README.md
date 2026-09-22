@@ -5,7 +5,7 @@
 - Project/AUT: **GestionPisos / Allaiso**
 - Repositorio de producto: https://github.com/jdlc86/gestionpisos
 - Repositorio de orquestación QA: https://github.com/jdlc86/Allaiso-QA-Orchestrator
-- Estado de integración: **REGISTERED_NOT_ACTIVE**
+- Estado de integración: **PUBLIC_SMOKE_PENDING**
 
 Este registro existe para que cualquier sesión futura descubra la relación entre ambos repositorios sin depender de memoria conversacional.
 
@@ -24,9 +24,9 @@ Este repositorio conserva la autoridad sobre la futura infraestructura de orques
 
 ## Estado actual
 
-A 22/09/2026 la relación está documentada, pero no debe asumirse que exista un runner conectado, un navegador autónomo disponible, credenciales provisionadas ni una vía de ejecución validada.
+A 22/09/2026 el runner `allaiso-qa-JDIA`, el executor versionado y el control de navegador mediante OpenClaw han sido validados con el proyecto `demo`. GestionPisos entra ahora en activación controlada mediante un smoke público, sin autenticación ni mutaciones.
 
-No se define aquí todavía cómo ejecutar GestionPisos desde esta plataforma. Esa activación deberá quedar documentada explícitamente cuando exista y deberá reflejarse también en el repositorio de producto.
+La configuración no secreta está en `projects/gestionpisos/project.yaml`. No se considerará la integración operativa para pruebas autenticadas hasta que el smoke público termine en PASS y exista una activación explícita posterior.
 
 ## Objetivo previsto
 
