@@ -239,6 +239,7 @@ def snapshot_semantics(stdout: str, parsed: Any) -> tuple[str, str]:
             break
     return title, heading
 
+
 def normalize_media_path(raw: str) -> str:
     raw = raw.strip().strip('"').strip("'")
     if raw.upper().startswith("MEDIA:"):
@@ -314,7 +315,10 @@ class Browser:
         return stdout, parsed
 
     def status(self, timeout_ms: int = 15000) -> tuple[Optional[dict[str, Any]], str]:
-        rc, stdout, stderr, parsed = self.run(["status"], timeout_ms, True)
+        try:
+            rc, stdout, stderr, parsed = self.run(["status"], timeout_ms, True)
+        except InfrastructureFailure as exc:
+            return None, str(exc)
         if rc != 0:
             return None, stderr or stdout or "browser status returned no diagnostic output"
         if not isinstance(parsed, dict):
@@ -349,6 +353,7 @@ class Browser:
             raise InfrastructureFailure(
                 f"OpenClaw browser did not become ready after start: {diagnostic}"
             )
+
     def open(self, url: str, label: str) -> None:
         self.require(["open", url, "--label", label], 30000)
 
