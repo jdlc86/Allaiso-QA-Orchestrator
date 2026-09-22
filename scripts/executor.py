@@ -189,20 +189,51 @@ def fuzzy_json(text: str) -> Any:
         return None
 
 
+def meaningful_semantic_name(value: Any) -> bool:
+    return isinstance(value, str) and any(char.isalnum() for char in value)
+
+
+def iter_objects(value: Any):
+    if isinstance(value, dict):
+        yield value
+        for item in value.values():
+            yield from iter_objects(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from iter_objects(item)
+
+
 def snapshot_semantics(stdout: str, parsed: Any) -> tuple[str, str]:
-    strings = list(iter_strings(parsed))
-    if stdout:
-        strings.append(stdout)
     title = ""
     heading = ""
+
+    # ARIA JSON can expose structured nodes. Prefer those over reparsing the
+    # serialized JSON text, which can turn escaped quotes into false matches.
+    for item in iter_objects(parsed):
+        role = str(item.get("role") or item.get("type") or "").strip().lower()
+        name = item.get("name")
+        if role == "rootwebarea" and not title and meaningful_semantic_name(name):
+            title = str(name).strip()
+        if role == "heading" and not heading and meaningful_semantic_name(name):
+            heading = str(name).strip()
+        if title and heading:
+            return title, heading
+
+    # Some OpenClaw versions wrap the ARIA tree as one or more text fields.
+    # Inspect decoded JSON strings first; only fall back to raw stdout when no
+    # JSON payload was decoded. Never accept punctuation-only captures.
+    strings = list(iter_strings(parsed)) if parsed is not None else []
+    if not strings and stdout:
+        strings = [stdout]
+
     for text in strings:
         if not title:
             match = re.search(r'(?im)\bRootWebArea\b[^\n"]*"([^"]+)"', text)
-            if match:
+            if match and meaningful_semantic_name(match.group(1)):
                 title = match.group(1).strip()
         if not heading:
             match = re.search(r'(?im)\bheading\b[^\n"]*"([^"]+)"', text)
-            if match:
+            if match and meaningful_semantic_name(match.group(1)):
                 heading = match.group(1).strip()
         if title and heading:
             break
@@ -283,8 +314,45 @@ class Browser:
             )
         return stdout, parsed
 
+    def status(self, timeout_ms: int = 15000) -> tuple[Optional[dict[str, Any]], str]:
+        try:
+            rc, stdout, stderr, parsed = self.run(["status"], timeout_ms, True)
+        except InfrastructureFailure as exc:
+            return None, str(exc)
+        if rc != 0:
+            return None, stderr or stdout or "browser status returned no diagnostic output"
+        if not isinstance(parsed, dict):
+            return None, "browser status did not return a JSON object"
+        return parsed, ""
+
+    @staticmethod
+    def status_ready(status: Optional[dict[str, Any]]) -> bool:
+        return bool(
+            isinstance(status, dict)
+            and status.get("running") is True
+            and status.get("cdpReady") is True
+        )
+
     def start(self) -> None:
-        self.require(["start"], 30000)
+        # A previous run can leave the dedicated managed browser alive. An
+        # unconditional second start has exhausted the request timeout on the
+        # Windows QA runner, so probe passive readiness first.
+        status, _ = self.status()
+        if self.status_ready(status):
+            return
+
+        self.require(["start"], 60000)
+
+        status, diagnostic = self.status()
+        if not self.status_ready(status):
+            if status is not None:
+                diagnostic = (
+                    f"running={status.get('running')!r}, "
+                    f"cdpReady={status.get('cdpReady')!r}"
+                )
+            raise InfrastructureFailure(
+                f"OpenClaw browser did not become ready after start: {diagnostic}"
+            )
 
     def open(self, url: str, label: str) -> None:
         self.require(["open", url, "--label", label], 30000)

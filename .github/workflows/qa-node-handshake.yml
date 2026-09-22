@@ -8,6 +8,7 @@ on:
     paths:
       - ".github/workflows/qa-node-handshake.yml"
       - "scripts/executor.py"
+      - "scripts/test_executor.py"
       - "scripts/node_probe.py"
       - "scripts/validate_job.py"
       - "examples/jobs/smoke-demo.json"
@@ -28,6 +29,21 @@ jobs:
     steps:
       - name: Checkout control plane
         uses: actions/checkout@v4
+
+      - name: Executor regression
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) {
+            throw "Python is not available to the GitHub runner identity."
+          }
+          & $python.Source @args scripts/test_executor.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Workstation probe
         shell: powershell
