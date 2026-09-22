@@ -27,6 +27,19 @@ PROTOCOL_VERSION = "0.1"
 STEP_STATUSES = {"PASSED", "FAILED", "BLOCKED", "ERROR", "SKIPPED"}
 RESULT_STATUSES = {"PASSED", "FAILED", "BLOCKED", "ERROR", "CANCELLED"}
 
+# Bootstrap-stage allowlist. Keep this deliberately narrow until authenticated
+# AUT execution is explicitly activated.
+PROJECT_POLICIES = {
+    "demo": {
+        "environment": "test",
+        "allowed_url_prefixes": ("https://example.com/",),
+    },
+    "gestionpisos": {
+        "environment": "test",
+        "allowed_url_prefixes": ("https://jdlc86.github.io/gestionpisos/",),
+    },
+}
+
 
 class BlockedFailure(Exception):
     pass
@@ -97,9 +110,14 @@ def validate_job(job: dict[str, Any]) -> None:
         raise BlockedFailure("safety must be an object.")
     if safety.get("destructive_actions") or safety.get("production_writes"):
         raise BlockedFailure("Bootstrap executor only permits non-destructive/no-write jobs.")
-    if job["project_id"] != "demo":
+
+    project_id = str(job["project_id"])
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted for bootstrap execution: {project_id}")
+    if job["environment"] != policy["environment"]:
         raise BlockedFailure(
-            "Bootstrap executor is intentionally restricted to project_id='demo'."
+            f"Environment {job['environment']!r} is not allowed for project {project_id!r}."
         )
 
 
@@ -130,6 +148,24 @@ def safe_label(run_id: str) -> str:
 def extract_url(action: str) -> str:
     match = re.search(r"https?://[^\s]+", action)
     return match.group(0).rstrip(".,);]") if match else "https://example.com"
+
+
+def validate_target_url(project_id: str, url: str) -> None:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        raise BlockedFailure("Bootstrap navigation requires HTTPS.")
+
+    for prefix in policy["allowed_url_prefixes"]:
+        if url == prefix.rstrip("/") or url.startswith(prefix):
+            return
+
+    raise BlockedFailure(
+        f"Target URL is outside the allowlist for project {project_id!r}: {url}"
+    )
 
 
 def iter_strings(value: Any):
@@ -316,6 +352,7 @@ def main() -> int:
             try:
                 if action.startswith("Navigate to"):
                     url = extract_url(action)
+                    validate_target_url(project_id, url)
                     browser.open(url, label)
                     navigation_ok = True
                     steps_out.append(step(
@@ -362,6 +399,10 @@ def main() -> int:
                     ))
                     diagnostics.append(f"Unsupported action: {action}")
                     break
+            except BlockedFailure as exc:
+                steps_out.append(step(step_id, "BLOCKED", str(exc)))
+                diagnostics.append(f"Step {step_id} blocked: {redact(str(exc))}")
+                break
             except InfrastructureFailure as exc:
                 steps_out.append(step(step_id, "ERROR", str(exc)))
                 diagnostics.append(f"Step {step_id} error: {redact(str(exc))}")
