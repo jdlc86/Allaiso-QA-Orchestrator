@@ -2,6 +2,15 @@ name: QA Node Handshake
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/qa-node-handshake.yml"
+      - "scripts/executor.py"
+      - "scripts/node_probe.py"
+      - "scripts/validate_job.py"
+      - "examples/jobs/smoke-demo.json"
 
 permissions:
   contents: read
