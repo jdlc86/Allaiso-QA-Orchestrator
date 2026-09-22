@@ -16,9 +16,9 @@ Durable exchange for protocol, project manifests, jobs, results and selected evi
 Outbound-connected worker installed on the QA workstation. GitHub assigns approved jobs to it. It must use dedicated labels such as `self-hosted`, OS label, and `allaiso-qa` so unrelated workflows cannot accidentally execute on this machine.
 
 ### 4. Local executor adapter
-A small vendor-neutral program that validates a job, obtains a lock, invokes the available computer/browser automation runtime (initially OpenCloud), normalizes evidence, validates the result schema, and publishes output.
+A small vendor-neutral program that validates a job, obtains a lock, invokes the available computer/browser automation runtime (initially OpenClaw), normalizes evidence, validates the result schema, and publishes output.
 
-OpenCloud is therefore an **adapter target**, not the protocol itself. A future Playwright-only agent, another desktop AI, or another workstation can implement the same contract.
+OpenClaw is therefore an **adapter target**, not the protocol itself. A future Playwright-only agent, another desktop AI, or another workstation can implement the same contract.
 
 ### 5. Browser/computer automation
 Required baseline capabilities:
