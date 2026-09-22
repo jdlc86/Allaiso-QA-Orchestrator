@@ -33,10 +33,12 @@ PROJECT_POLICIES = {
     "demo": {
         "environment": "test",
         "allowed_url_prefixes": ("https://example.com/",),
+        "browser_profile": "qa-demo-public",
     },
     "gestionpisos": {
         "environment": "test",
         "allowed_url_prefixes": ("https://jdlc86.github.io/gestionpisos/",),
+        "browser_profile": "qa-gestionpisos-public",
     },
 }
 
@@ -148,6 +150,18 @@ def safe_label(run_id: str) -> str:
 def extract_url(action: str) -> str:
     match = re.search(r"https?://[^\s]+", action)
     return match.group(0).rstrip(".,);]") if match else "https://example.com"
+
+
+def project_browser_profile(project_id: str) -> str:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+    profile = str(policy.get("browser_profile") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", profile):
+        raise BlockedFailure(
+            f"Project {project_id!r} has an invalid browser profile policy."
+        )
+    return profile
 
 
 def validate_target_url(project_id: str, url: str) -> None:
@@ -314,6 +328,72 @@ class Browser:
             )
         return stdout, parsed
 
+    def run_unscoped(
+        self,
+        args: list[str],
+        timeout_ms: int = 30000,
+        json_output: bool = False,
+    ):
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise InfrastructureFailure("Job timeout expired.")
+        request_ms = max(1000, min(timeout_ms, int(remaining * 1000)))
+        command = [
+            self.binary, "browser", "--timeout", str(request_ms),
+        ]
+        if json_output:
+            command.append("--json")
+        command.extend(args)
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=repo_root(),
+                shell=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=max(1.0, min(remaining, request_ms / 1000 + 12)),
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise InfrastructureFailure(
+                f"OpenClaw command timed out: {' '.join(args)}"
+            ) from exc
+        stdout = redact((completed.stdout or "").strip())
+        stderr = redact((completed.stderr or "").strip())
+        return completed.returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
+
+    def ensure_profile(self) -> None:
+        rc, stdout, stderr, parsed = self.run_unscoped(
+            ["profiles"], 15000, True
+        )
+        if rc != 0:
+            detail = stderr or stdout or "no diagnostic output"
+            raise InfrastructureFailure(
+                f"OpenClaw profiles failed (rc={rc}): {detail}"
+            )
+
+        serialized = (
+            json.dumps(parsed, ensure_ascii=False)
+            if parsed is not None
+            else stdout
+        )
+        pattern = rf"(?<![A-Za-z0-9_.-]){re.escape(self.profile)}(?![A-Za-z0-9_.-])"
+        if re.search(pattern, serialized):
+            return
+
+        rc, stdout, stderr, _ = self.run_unscoped(
+            ["create-profile", "--name", self.profile],
+            30000,
+            False,
+        )
+        if rc != 0:
+            detail = stderr or stdout or "no diagnostic output"
+            raise InfrastructureFailure(
+                f"OpenClaw could not create isolated profile {self.profile!r} "
+                f"(rc={rc}): {detail}"
+            )
+
     def status(self, timeout_ms: int = 15000) -> tuple[Optional[dict[str, Any]], str]:
         try:
             rc, stdout, stderr, parsed = self.run(["status"], timeout_ms, True)
@@ -334,6 +414,8 @@ class Browser:
         )
 
     def start(self) -> None:
+        self.ensure_profile()
+
         # A previous run can leave the dedicated managed browser alive. An
         # unconditional second start has exhausted the request timeout on the
         # Windows QA runner, so probe passive readiness first.
@@ -408,7 +490,7 @@ def main() -> int:
         validate_job(job)
 
         deadline = time.monotonic() + int(job.get("timeout_seconds", 900))
-        browser = Browser(deadline)
+        browser = Browser(deadline, profile=project_browser_profile(project_id))
         browser.start()
         label = safe_label(run_id)
 
