@@ -62,31 +62,63 @@ class BrowserReadinessTests(unittest.TestCase):
             "qa-gestionpisos-public",
         )
 
-    def test_existing_profile_is_reused(self):
+    def test_existing_profile_is_reused_without_global_listing(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
-        browser.run_unscoped = Mock(return_value=(
-            0,
-            '{"profiles":[{"name":"qa-gestionpisos-public"}]}',
+        browser.status = Mock(return_value=(
+            {"running": False, "cdpReady": False},
             "",
-            {"profiles": [{"name": "qa-gestionpisos-public"}]},
         ))
-        browser.ensure_profile()
-        self.assertEqual(browser.run_unscoped.call_count, 1)
+        browser.run_unscoped = Mock()
 
-    def test_missing_profile_is_created_once(self):
+        browser.ensure_profile()
+
+        browser.status.assert_called_once_with(timeout_ms=5000)
+        browser.run_unscoped.assert_not_called()
+
+    def test_missing_profile_is_created_without_global_listing(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
-        browser.run_unscoped = Mock(side_effect=[
-            (0, '{"profiles":[]}', "", {"profiles": []}),
-            (0, "created", "", None),
-        ])
+        browser.status = Mock(return_value=(None, "unknown browser profile"))
+        browser.run_unscoped = Mock(return_value=(0, "created", "", None))
+
         browser.ensure_profile()
-        self.assertEqual(browser.run_unscoped.call_count, 2)
-        self.assertEqual(
-            browser.run_unscoped.call_args_list[1].args[0],
+
+        browser.status.assert_called_once_with(timeout_ms=5000)
+        browser.run_unscoped.assert_called_once_with(
             ["create-profile", "--name", "qa-gestionpisos-public"],
+            30000,
+            False,
         )
+
+    def test_create_profile_already_exists_is_idempotent(self):
+        browser = object.__new__(Browser)
+        browser.profile = "qa-gestionpisos-public"
+        browser.status = Mock(return_value=(None, "status timeout"))
+        browser.run_unscoped = Mock(return_value=(
+            1,
+            "",
+            "Browser profile already exists: qa-gestionpisos-public",
+            None,
+        ))
+
+        browser.ensure_profile()
+
+        browser.run_unscoped.assert_called_once()
+
+    def test_create_profile_other_failure_is_reported(self):
+        browser = object.__new__(Browser)
+        browser.profile = "qa-gestionpisos-public"
+        browser.status = Mock(return_value=(None, "unknown browser profile"))
+        browser.run_unscoped = Mock(return_value=(
+            1,
+            "",
+            "permission denied",
+            None,
+        ))
+
+        with self.assertRaises(InfrastructureFailure):
+            browser.ensure_profile()
 
 
 if __name__ == "__main__":
