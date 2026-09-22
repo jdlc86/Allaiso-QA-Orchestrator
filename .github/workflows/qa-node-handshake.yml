@@ -56,7 +56,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path .runtime | Out-Null
 
           $job = Get-Content examples/jobs/smoke-demo.json -Raw | ConvertFrom-Json
-          $suffix = "\${env:GITHUB_RUN_ID}-\${env:GITHUB_RUN_ATTEMPT}"
+          $suffix = "${env:GITHUB_RUN_ID}-${env:GITHUB_RUN_ATTEMPT}"
           $job.job_id = "gh-handshake-$suffix"
           $job.run_id = "gh-handshake-$suffix"
           $job.timeout_seconds = 300
@@ -110,7 +110,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qa-node-handshake-\${{ github.run_id }}-\${{ github.run_attempt }}
+          name: qa-node-handshake-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .runtime/node-probe.json
             .runtime/handshake-job.json
