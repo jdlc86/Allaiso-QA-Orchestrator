@@ -2,7 +2,13 @@
 import unittest
 from unittest.mock import Mock
 
-from executor import Browser, InfrastructureFailure, project_browser_profile, snapshot_semantics
+from executor import (
+    Browser,
+    InfrastructureFailure,
+    project_browser_port,
+    project_browser_profile,
+    snapshot_semantics,
+)
 
 
 class SnapshotSemanticsTests(unittest.TestCase):
@@ -57,65 +63,97 @@ class BrowserReadinessTests(unittest.TestCase):
 
     def test_profile_policy_is_project_scoped(self):
         self.assertEqual(project_browser_profile("demo"), "qa-demo-public")
+        self.assertEqual(project_browser_port("demo"), 18890)
         self.assertEqual(
             project_browser_profile("gestionpisos"),
             "qa-gestionpisos-public",
         )
+        self.assertEqual(project_browser_port("gestionpisos"), 18891)
 
-    def test_existing_profile_is_reused_without_global_listing(self):
+    def test_existing_profile_is_reused_without_config_write(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
+        browser.profile_port = 18891
         browser.status = Mock(return_value=(
             {"running": False, "cdpReady": False},
             "",
         ))
-        browser.run_unscoped = Mock()
+        browser.run_cli = Mock()
 
         browser.ensure_profile()
 
         browser.status.assert_called_once_with(timeout_ms=5000)
-        browser.run_unscoped.assert_not_called()
+        browser.run_cli.assert_not_called()
 
-    def test_missing_profile_is_created_without_global_listing(self):
+    def test_configured_profile_port_is_reused(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
+        browser.profile_port = 18891
         browser.status = Mock(return_value=(None, "unknown browser profile"))
-        browser.run_unscoped = Mock(return_value=(0, "created", "", None))
+        browser.run_cli = Mock(return_value=(0, "18891", "", 18891))
 
         browser.ensure_profile()
 
-        browser.status.assert_called_once_with(timeout_ms=5000)
-        browser.run_unscoped.assert_called_once_with(
-            ["create-profile", "--name", "qa-gestionpisos-public"],
-            30000,
-            False,
+        browser.run_cli.assert_called_once_with(
+            [
+                "config",
+                "get",
+                "browser.profiles.qa-gestionpisos-public.cdpPort",
+                "--json",
+            ],
+            15000,
+            True,
         )
 
-    def test_create_profile_already_exists_is_idempotent(self):
+    def test_missing_profile_is_provisioned_through_config(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
-        browser.status = Mock(return_value=(None, "status timeout"))
-        browser.run_unscoped = Mock(return_value=(
-            1,
-            "",
-            "Browser profile already exists: qa-gestionpisos-public",
-            None,
-        ))
+        browser.profile_port = 18891
+        browser.status = Mock(side_effect=[
+            (None, "unknown browser profile"),
+            ({"running": False, "cdpReady": False}, ""),
+        ])
+        browser.run_cli = Mock(side_effect=[
+            (
+                1,
+                '{"ok":false,"error":{"message":"Config path not found: browser.profiles.qa-gestionpisos-public.cdpPort"}}',
+                "",
+                {"ok": False, "error": {"message": "Config path not found: browser.profiles.qa-gestionpisos-public.cdpPort"}},
+            ),
+            (0, "Updated", "", None),
+        ])
 
         browser.ensure_profile()
 
-        browser.run_unscoped.assert_called_once()
+        self.assertEqual(browser.run_cli.call_count, 2)
+        self.assertEqual(
+            browser.run_cli.call_args_list[1].args[0],
+            [
+                "config",
+                "set",
+                "browser.profiles.qa-gestionpisos-public.cdpPort",
+                "18891",
+                "--strict-json",
+            ],
+        )
+        self.assertEqual(browser.status.call_count, 2)
 
-    def test_create_profile_other_failure_is_reported(self):
+    def test_existing_profile_with_unexpected_port_is_rejected(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
+        browser.profile_port = 18891
         browser.status = Mock(return_value=(None, "unknown browser profile"))
-        browser.run_unscoped = Mock(return_value=(
-            1,
-            "",
-            "permission denied",
-            None,
-        ))
+        browser.run_cli = Mock(return_value=(0, "18842", "", 18842))
+
+        with self.assertRaises(InfrastructureFailure):
+            browser.ensure_profile()
+
+    def test_config_lookup_other_failure_is_reported(self):
+        browser = object.__new__(Browser)
+        browser.profile = "qa-gestionpisos-public"
+        browser.profile_port = 18891
+        browser.status = Mock(return_value=(None, "unknown browser profile"))
+        browser.run_cli = Mock(return_value=(1, "", "permission denied", None))
 
         with self.assertRaises(InfrastructureFailure):
             browser.ensure_profile()
