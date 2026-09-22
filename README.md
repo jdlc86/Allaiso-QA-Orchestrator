@@ -85,13 +85,13 @@ GitHub is deliberately asynchronous. The orchestrator should normally send a mea
 
 ## Known application links
 
-- **GestionPisos / Allaiso** → `projects/gestionpisos/README.md` → **REGISTERED_NOT_ACTIVE**.
+- **GestionPisos / Allaiso** → `projects/gestionpisos/README.md` → **PUBLIC_SMOKE_VERIFIED**.
 - Product repository: https://github.com/jdlc86/gestionpisos
 
-This registration is a durable cross-repository link only. It does not mean that a runner, browser session, credentials, or validated execution path already exists.
+The public read-only execution path is validated end to end through the self-hosted runner and OpenClaw, including navigation, semantic inspection and screenshot evidence. Authenticated E2E and AUT writes are still disabled and require a separate explicit activation.
 
 ## Status
 
-Phase 0: architecture and protocol bootstrap. No workstation software should be considered production-ready until the bootstrap handshake and a harmless smoke test have passed.
+Phase 1: the workstation handshake and GestionPisos public read-only smoke are verified. The current executor is operational only for the allowlisted bootstrap/public-smoke action family.
 
-The GestionPisos link is currently documentation-only. Operational activation must be explicit and reflected in both repositories before any session treats this platform as an available E2E executor.
+Authenticated browser sessions, mutable AUT scenarios, parallel execution and mass-suite orchestration remain later activation stages. Until those controls are implemented and explicitly enabled, no session may treat them as available capabilities.
