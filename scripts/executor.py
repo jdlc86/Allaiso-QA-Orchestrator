@@ -365,7 +365,7 @@ class Browser:
 
     @staticmethod
     def profile_already_exists(detail: str) -> bool:
-        return bool(re.search(r"(?i)\\balready\\s+exists\\b", detail or ""))
+        return bool(re.search(r"(?i)\balready\s+exists\b", detail or ""))
 
     def ensure_profile(self) -> None:
         # Avoid the global `profiles` enumeration here. On the Windows QA
