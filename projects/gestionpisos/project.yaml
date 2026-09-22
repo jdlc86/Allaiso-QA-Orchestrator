@@ -1,0 +1,27 @@
+protocol_version: "0.1"
+project_id: gestionpisos
+display_name: "GestionPisos / Allaiso"
+integration_status: "PUBLIC_SMOKE_PENDING"
+
+allowed_environments:
+  test:
+    base_url: "https://jdlc86.github.io/gestionpisos/"
+
+required_capabilities:
+  - browser
+  - aria_snapshot
+  - screenshot
+
+secret_names: []
+
+safety:
+  production_allowed: false
+  destructive_tests_allowed: false
+  authentication_allowed: false
+  allowed_url_prefixes:
+    - "https://jdlc86.github.io/gestionpisos/"
+
+notes:
+  - "This activation stage is public and read-only."
+  - "No credentials, cookies, tokens, form submissions, or AUT mutations are allowed."
+  - "The workflow battery in the GestionPisos repository remains the source of truth for product PASS/FAIL."
