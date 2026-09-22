@@ -83,6 +83,15 @@ Other AI          ─┘              ^                         └────�
 
 GitHub is deliberately asynchronous. The orchestrator should normally send a meaningful test bundle, not individual mouse clicks. The executor can make bounded diagnostic decisions described in the job, then return a complete report.
 
+## Known application links
+
+- **GestionPisos / Allaiso** → `projects/gestionpisos/README.md` → **REGISTERED_NOT_ACTIVE**.
+- Product repository: https://github.com/jdlc86/gestionpisos
+
+This registration is a durable cross-repository link only. It does not mean that a runner, browser session, credentials, or validated execution path already exists.
+
 ## Status
 
 Phase 0: architecture and protocol bootstrap. No workstation software should be considered production-ready until the bootstrap handshake and a harmless smoke test have passed.
+
+The GestionPisos link is currently documentation-only. Operational activation must be explicit and reflected in both repositories before any session treats this platform as an available E2E executor.
