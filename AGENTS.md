@@ -8,7 +8,7 @@ This file is the first operational document for any AI interacting with this rep
 Usually a ChatGPT session or another remote AI. It designs test intent, publishes jobs, reads results/evidence, and decides follow-up work.
 
 ### EXECUTOR
-The AI/runtime on the QA workstation (initial target: OpenCloud). It provisions approved local prerequisites, claims jobs, operates the browser/computer, captures evidence, and publishes results.
+The AI/runtime on the QA workstation (initial target: OpenClaw). It provisions approved local prerequisites, claims jobs, operates the browser/computer, captures evidence, and publishes results.
 
 ### AUT
 Application Under Test. AUT configuration is project-specific and must never leak into another project's run.
@@ -28,9 +28,9 @@ Never rely on a previous conversation. Before acting, reconstruct state from thi
 7. Treat executor output as evidence, not infallible truth. Check contradictions.
 8. Keep different applications and sessions isolated by IDs and directories.
 
-## Executor/OpenCloud rules
+## Executor/OpenClaw rules
 
-1. Read `docs/OPENCloud-BOOTSTRAP.md` before provisioning anything.
+1. Read `docs/OPENCLAW-BOOTSTRAP.md` before provisioning anything.
 2. Do not invent installation commands when current GitHub runner instructions can be obtained from repository Settings > Actions > Runners.
 3. Verify existing software before installing duplicates.
 4. Never expose GitHub registration tokens, application credentials, cookies, or private environment values in commits/logs/screenshots.
