@@ -5,6 +5,7 @@ from unittest.mock import Mock
 from executor import (
     Browser,
     InfrastructureFailure,
+    project_browser_color,
     project_browser_port,
     project_browser_profile,
     snapshot_semantics,
@@ -64,16 +65,19 @@ class BrowserReadinessTests(unittest.TestCase):
     def test_profile_policy_is_project_scoped(self):
         self.assertEqual(project_browser_profile("demo"), "qa-demo-public")
         self.assertEqual(project_browser_port("demo"), 18890)
+        self.assertEqual(project_browser_color("demo"), "#5B8DEF")
         self.assertEqual(
             project_browser_profile("gestionpisos"),
             "qa-gestionpisos-public",
         )
         self.assertEqual(project_browser_port("gestionpisos"), 18891)
+        self.assertEqual(project_browser_color("gestionpisos"), "#8B5CF6")
 
     def test_existing_profile_is_reused_without_config_write(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
         browser.profile_port = 18891
+        browser.profile_color = "#8B5CF6"
         browser.status = Mock(return_value=(
             {"running": False, "cdpReady": False},
             "",
@@ -89,6 +93,7 @@ class BrowserReadinessTests(unittest.TestCase):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
         browser.profile_port = 18891
+        browser.profile_color = "#8B5CF6"
         browser.status = Mock(return_value=(None, "unknown browser profile"))
         browser.run_cli = Mock(return_value=(0, "18891", "", 18891))
 
@@ -109,6 +114,7 @@ class BrowserReadinessTests(unittest.TestCase):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
         browser.profile_port = 18891
+        browser.profile_color = "#8B5CF6"
         browser.status = Mock(side_effect=[
             (None, "unknown browser profile"),
             ({"running": False, "cdpReady": False}, ""),
@@ -131,8 +137,8 @@ class BrowserReadinessTests(unittest.TestCase):
             [
                 "config",
                 "set",
-                "browser.profiles.qa-gestionpisos-public.cdpPort",
-                "18891",
+                "browser.profiles.qa-gestionpisos-public",
+                '{"cdpPort":18891,"color":"#8B5CF6"}',
                 "--strict-json",
             ],
         )
@@ -142,6 +148,7 @@ class BrowserReadinessTests(unittest.TestCase):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
         browser.profile_port = 18891
+        browser.profile_color = "#8B5CF6"
         browser.status = Mock(return_value=(None, "unknown browser profile"))
         browser.run_cli = Mock(return_value=(0, "18842", "", 18842))
 
@@ -152,6 +159,7 @@ class BrowserReadinessTests(unittest.TestCase):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
         browser.profile_port = 18891
+        browser.profile_color = "#8B5CF6"
         browser.status = Mock(return_value=(None, "unknown browser profile"))
         browser.run_cli = Mock(return_value=(1, "", "permission denied", None))
 
