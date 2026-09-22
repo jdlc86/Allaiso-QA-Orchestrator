@@ -1,4 +1,4 @@
-# OpenCloud Workstation Bootstrap
+# OpenClaw Workstation Bootstrap
 
 > Instruction to the local AI: treat this repository as the source of truth. Your task is to prepare this computer as a **generic QA execution node**, not as a node dedicated to one application.
 
@@ -7,7 +7,7 @@
 Before changing the computer:
 
 1. identify OS/architecture and current user privileges;
-2. inventory existing Git, GitHub CLI (optional), Node/Python/browser tooling, OpenCloud, and any browser automation support;
+2. inventory existing Git, GitHub CLI (optional), Node/Python/browser tooling, OpenClaw, and any browser automation support;
 3. report what is already installed and what is missing;
 4. do not uninstall/upgrade unrelated software merely to satisfy this project;
 5. never print or commit credentials/tokens.
@@ -48,13 +48,13 @@ Confirm that the local AI/runtime can perform, directly or through an adapter:
 
 Recommended: console logs, network metadata, DOM/accessibility snapshots, traces/video.
 
-## 4. OpenCloud integration discovery
+## 4. OpenClaw integration discovery
 
-Do not assume a specific OpenCloud CLI/API syntax from this repository. Inspect the actually installed OpenCloud version and its local help/documentation. Determine the safest stable invocation mechanism that can accept a job and return structured output.
+Do not assume a specific OpenClaw CLI/API syntax from this repository. Inspect the actually installed OpenClaw version and its local help/documentation. Determine the safest stable invocation mechanism that can accept a job and return structured output.
 
 Record the discovered adapter command/configuration locally. If repository code is needed to support this version, propose it as a change rather than embedding machine-specific assumptions into the protocol.
 
-If OpenCloud cannot expose the required automation capabilities, report `BLOCKED` with the missing capability. Do not fake compatibility.
+If OpenClaw cannot expose the required automation capabilities, report `BLOCKED` with the missing capability. Do not fake compatibility.
 
 ## 5. Runtime dependencies
 
@@ -86,7 +86,7 @@ Return a concise readiness report:
 
 - OS/architecture;
 - runner name/status;
-- OpenCloud version and discovered invocation method;
+- OpenClaw version and discovered invocation method;
 - browser automation capabilities confirmed/missing;
 - dependencies installed;
 - security warnings;

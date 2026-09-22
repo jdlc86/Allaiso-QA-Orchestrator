@@ -5,8 +5,8 @@ runner:
     - "allaiso-qa"
   max_parallel_runs: 1
 executor:
-  adapter: "opencloud"
-  command: null  # discover from the installed OpenCloud version; do not guess
+  adapter: "openclaw"
+  command: null  # discover from the installed OpenClaw version; do not guess
   workspace_root: "./.runtime"
   default_timeout_seconds: 900
 browser:

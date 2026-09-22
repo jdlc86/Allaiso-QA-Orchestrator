@@ -8,7 +8,7 @@ This repository is **not tied to one application or one ChatGPT conversation**. 
 
 1. an **Orchestrator AI** (for example a ChatGPT session),
 2. GitHub as the durable/versioned **control plane**,
-3. a **local execution agent** running on the QA workstation (initial target: OpenCloud),
+3. a **local execution agent** running on the QA workstation (initial target: OpenClaw),
 4. one or more **Applications Under Test (AUTs)**.
 
 An orchestrator publishes a self-contained test job. The local agent claims it, drives the browser/computer, records evidence, and publishes a structured result. A later/different AI session can read the same repository and continue without hidden conversational state.
@@ -29,7 +29,7 @@ An orchestrator publishes a self-contained test job. The local agent claims it, 
 ### If you are the AI/operator on the QA computer
 Read, in order:
 
-1. `docs/OPENCloud-BOOTSTRAP.md`
+1. `docs/OPENCLAW-BOOTSTRAP.md`
 2. `docs/ARCHITECTURE.md`
 3. `docs/PROTOCOL.md`
 4. `config/runner.example.yaml`
@@ -53,7 +53,7 @@ AGENTS.md                       AI-to-AI operating contract
 README.md                       Entry point
 docs/
   ARCHITECTURE.md               Components, boundaries and multi-project design
-  OPENCloud-BOOTSTRAP.md        Instructions for the local OpenCloud AI
+  OPENCLAW-BOOTSTRAP.md         Instructions for the local OpenClaw AI
   PROTOCOL.md                   Job/result lifecycle and communication contract
 config/
   runner.example.yaml           Local executor configuration template
@@ -75,8 +75,8 @@ scripts/                        Bootstrap/executor implementation (next mileston
 
 ```text
 ChatGPT session A ─┐
-ChatGPT session B ─┼─> GitHub control plane ─> QA workstation / OpenCloud ─> AUT A
-Other AI          ─┘              ^                         └───────────────> AUT B
+ChatGPT session B ─┼─> GitHub control plane ─> QA workstation / OpenClaw ─> AUT A
+Other AI          ─┘              ^                        └───────────────> AUT B
                                   |
                          results + evidence
 ```
