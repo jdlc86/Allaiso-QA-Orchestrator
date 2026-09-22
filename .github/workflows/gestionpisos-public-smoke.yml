@@ -49,7 +49,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path .runtime | Out-Null
 
           $job = Get-Content examples/jobs/gestionpisos-public-smoke.json -Raw | ConvertFrom-Json
-          $suffix = "\${env:GITHUB_RUN_ID}-\${env:GITHUB_RUN_ATTEMPT}"
+          $suffix = "${env:GITHUB_RUN_ID}-${env:GITHUB_RUN_ATTEMPT}"
           $job.job_id = "gestionpisos-public-$suffix"
           $job.run_id = "gestionpisos-public-$suffix"
           $job.timeout_seconds = 300
@@ -103,7 +103,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gestionpisos-public-smoke-\${{ github.run_id }}-\${{ github.run_attempt }}
+          name: gestionpisos-public-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .runtime/gestionpisos-public-job.json
             results/gestionpisos/gestionpisos-public-*/result.json
