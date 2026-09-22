@@ -363,23 +363,17 @@ class Browser:
         stderr = redact((completed.stderr or "").strip())
         return completed.returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
 
-    def ensure_profile(self) -> None:
-        rc, stdout, stderr, parsed = self.run_unscoped(
-            ["profiles"], 15000, True
-        )
-        if rc != 0:
-            detail = stderr or stdout or "no diagnostic output"
-            raise InfrastructureFailure(
-                f"OpenClaw profiles failed (rc={rc}): {detail}"
-            )
+    @staticmethod
+    def profile_already_exists(detail: str) -> bool:
+        return bool(re.search(r"(?i)\\balready\\s+exists\\b", detail or ""))
 
-        serialized = (
-            json.dumps(parsed, ensure_ascii=False)
-            if parsed is not None
-            else stdout
-        )
-        pattern = rf"(?<![A-Za-z0-9_.-]){re.escape(self.profile)}(?![A-Za-z0-9_.-])"
-        if re.search(pattern, serialized):
+    def ensure_profile(self) -> None:
+        # Avoid the global `profiles` enumeration here. On the Windows QA
+        # runner that command has reproducibly exhausted its request timeout,
+        # while scoped profile commands remain usable. Probe only the selected
+        # allowlisted profile and fall back to idempotent creation.
+        status, _ = self.status(timeout_ms=5000)
+        if status is not None:
             return
 
         rc, stdout, stderr, _ = self.run_unscoped(
@@ -387,12 +381,17 @@ class Browser:
             30000,
             False,
         )
-        if rc != 0:
-            detail = stderr or stdout or "no diagnostic output"
-            raise InfrastructureFailure(
-                f"OpenClaw could not create isolated profile {self.profile!r} "
-                f"(rc={rc}): {detail}"
-            )
+        if rc == 0:
+            return
+
+        detail = stderr or stdout or "no diagnostic output"
+        if self.profile_already_exists(detail):
+            return
+
+        raise InfrastructureFailure(
+            f"OpenClaw could not ensure isolated profile {self.profile!r} "
+            f"(rc={rc}): {detail}"
+        )
 
     def status(self, timeout_ms: int = 15000) -> tuple[Optional[dict[str, Any]], str]:
         try:
