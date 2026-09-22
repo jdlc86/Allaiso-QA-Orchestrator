@@ -2,7 +2,7 @@
 
 ## Principle
 
-The protocol is independent of ChatGPT, OpenCloud and any particular AUT.
+The protocol is independent of ChatGPT, OpenClaw and any particular AUT.
 
 ## Job location
 
