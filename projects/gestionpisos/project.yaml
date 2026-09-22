@@ -1,7 +1,7 @@
 protocol_version: "0.1"
 project_id: gestionpisos
 display_name: "GestionPisos / Allaiso"
-integration_status: "PUBLIC_SMOKE_PENDING"
+integration_status: "PUBLIC_SMOKE_VERIFIED"
 
 allowed_environments:
   test:
@@ -22,6 +22,6 @@ safety:
     - "https://jdlc86.github.io/gestionpisos/"
 
 notes:
-  - "This activation stage is public and read-only."
+  - "Public read-only smoke verified on 2026-09-22 (GitHub Actions run 35787573540)."
   - "No credentials, cookies, tokens, form submissions, or AUT mutations are allowed."
   - "The workflow battery in the GestionPisos repository remains the source of truth for product PASS/FAIL."
