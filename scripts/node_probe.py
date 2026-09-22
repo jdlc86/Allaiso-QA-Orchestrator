@@ -18,10 +18,10 @@ def version(cmd):
 
 report={
  "os":{"system":platform.system(),"release":platform.release(),"machine":platform.machine(),"python":platform.python_version()},
- "tools":{name:version(name) for name in ["git","gh","node","npm","python","python3","opencloud"]},
+ "tools":{name:version(name) for name in ["git","gh","node","npm","python","python3","openclaw"]},
  "browsers":{name:bool(shutil.which(name)) for name in ["google-chrome","chrome","chromium","chromium-browser","msedge","firefox"]},
  "runner_env":{"github_actions":os.getenv("GITHUB_ACTIONS")=="true","runner_name":os.getenv("RUNNER_NAME"),"runner_os":os.getenv("RUNNER_OS")},
- "notes":["Command discovery is heuristic. OpenCloud may be installed under another executable name; local AI must inspect its actual installation."]
+ "notes":["Command discovery is heuristic. OpenClaw CLI availability is probed as `openclaw`; use OPENCLAW_BIN if the runner identity needs an explicit path."]
 }
 Path(".runtime").mkdir(exist_ok=True)
 Path(".runtime/node-probe.json").write_text(json.dumps(report,indent=2),encoding="utf-8")

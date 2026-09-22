@@ -12,25 +12,109 @@ concurrency:
 
 jobs:
   handshake:
-    # Deliberately requires the dedicated label so this cannot land on an arbitrary runner.
+    # Dedicated label prevents this workflow from landing on an arbitrary runner.
     runs-on: [self-hosted, allaiso-qa]
-    timeout-minutes: 5
+    timeout-minutes: 10
+
     steps:
       - name: Checkout control plane
         uses: actions/checkout@v4
 
       - name: Workstation probe
-        shell: bash
-        run: python3 scripts/node_probe.py || python scripts/node_probe.py
+        shell: pwsh
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) {
+            throw "Python is not available to the GitHub runner identity."
+          }
+          & $python.Source @args scripts/node_probe.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Validate dependency-free smoke contract
-        shell: bash
-        run: python3 scripts/validate_job.py examples/jobs/smoke-demo.json || python scripts/validate_job.py examples/jobs/smoke-demo.json
+      - name: Validate committed smoke contract
+        shell: pwsh
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) {
+            throw "Python is not available to the GitHub runner identity."
+          }
+          & $python.Source @args scripts/validate_job.py examples/jobs/smoke-demo.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-      - name: Upload probe only
+      - name: Prepare unique runtime smoke job
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path .runtime | Out-Null
+
+          $job = Get-Content examples/jobs/smoke-demo.json -Raw | ConvertFrom-Json
+          $suffix = "${env:GITHUB_RUN_ID}-${env:GITHUB_RUN_ATTEMPT}"
+          $job.job_id = "gh-handshake-$suffix"
+          $job.run_id = "gh-handshake-$suffix"
+          $job.timeout_seconds = 300
+
+          $job | ConvertTo-Json -Depth 20 | Set-Content .runtime/handshake-job.json -Encoding utf8
+          "QA_RUN_ID=$($job.run_id)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Execute OpenClaw browser smoke
+        id: execute_smoke
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) {
+            throw "Python is not available to the GitHub runner identity."
+          }
+          & $python.Source @args scripts/executor.py .runtime/handshake-job.json
+          exit $LASTEXITCODE
+
+      - name: Verify smoke result
+        if: always()
+        shell: pwsh
+        run: |
+          if (-not $env:QA_RUN_ID) {
+            throw "QA_RUN_ID was not prepared."
+          }
+
+          $resultPath = "results/demo/$env:QA_RUN_ID/result.json"
+          if (-not (Test-Path $resultPath)) {
+            throw "Expected result was not produced: $resultPath"
+          }
+
+          $result = Get-Content $resultPath -Raw | ConvertFrom-Json
+          Write-Host "Executor status: $($result.status)"
+          Write-Host "Executor summary: $($result.summary)"
+
+          if ($result.status -ne "PASSED") {
+            throw "QA node handshake failed with executor status $($result.status)."
+          }
+
+          if (-not $result.evidence -or $result.evidence.Count -lt 1) {
+            throw "QA node handshake passed without screenshot evidence."
+          }
+
+      - name: Upload handshake evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: qa-node-handshake-${{ github.run_id }}
-          path: .runtime/node-probe.json
-          if-no-files-found: error
+          name: qa-node-handshake-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .runtime/node-probe.json
+            .runtime/handshake-job.json
+            results/demo/gh-handshake-*/result.json
+            evidence/demo/gh-handshake-*/**
+          if-no-files-found: warn
           retention-days: 7
