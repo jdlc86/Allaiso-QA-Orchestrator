@@ -487,7 +487,7 @@ class Browser:
         # requests are routed through a node proxy. Provision the named local
         # managed profile through OpenClaw's config surface instead, then use
         # browser.request only for lifecycle and page operations.
-        status, _ = self.status(timeout_ms=5000)
+        status, _ = self.status(timeout_ms=15000)
         if status is not None:
             return
 
@@ -567,9 +567,9 @@ class Browser:
 
     def wait_for_status(
         self,
-        attempts: int = 8,
+        attempts: int = 4,
         delay_seconds: float = 2.0,
-        timeout_ms: int = 5000,
+        timeout_ms: int = 15000,
     ) -> dict[str, Any]:
         diagnostic = "browser status unavailable"
         for attempt in range(attempts):
