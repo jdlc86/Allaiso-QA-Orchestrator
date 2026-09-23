@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import unittest
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from executor import (
     Browser,
@@ -94,8 +94,12 @@ class BrowserReadinessTests(unittest.TestCase):
         browser.profile = "qa-gestionpisos-public"
         browser.profile_port = 18891
         browser.profile_color = "#8B5CF6"
-        browser.status = Mock(return_value=(None, "unknown browser profile"))
+        browser.status = Mock(return_value=(None, "gateway reloading"))
         browser.run_cli = Mock(return_value=(0, "18891", "", 18891))
+        browser.wait_for_status = Mock(return_value={
+            "running": False,
+            "cdpReady": False,
+        })
 
         browser.ensure_profile()
 
@@ -109,6 +113,7 @@ class BrowserReadinessTests(unittest.TestCase):
             15000,
             True,
         )
+        browser.wait_for_status.assert_called_once_with()
 
     def test_missing_profile_is_provisioned_through_config(self):
         browser = object.__new__(Browser)
@@ -128,6 +133,10 @@ class BrowserReadinessTests(unittest.TestCase):
             ),
             (0, "Updated", "", None),
         ])
+        browser.wait_for_status = Mock(return_value={
+            "running": False,
+            "cdpReady": False,
+        })
 
         browser.ensure_profile()
 
@@ -142,7 +151,43 @@ class BrowserReadinessTests(unittest.TestCase):
                 "--strict-json",
             ],
         )
-        self.assertEqual(browser.status.call_count, 2)
+        browser.wait_for_status.assert_called_once_with()
+
+    def test_wait_for_status_retries_gateway_reload(self):
+        browser = object.__new__(Browser)
+        browser.profile = "qa-gestionpisos-public"
+        browser.status = Mock(side_effect=[
+            (None, "gateway closed"),
+            (None, "gateway restarting"),
+            ({"running": False, "cdpReady": False}, ""),
+        ])
+
+        with patch("executor.time.sleep") as sleep:
+            status = browser.wait_for_status(
+                attempts=3,
+                delay_seconds=0.1,
+                timeout_ms=5000,
+            )
+
+        self.assertEqual(status["running"], False)
+        self.assertEqual(browser.status.call_count, 3)
+        self.assertEqual(sleep.call_count, 2)
+
+    def test_wait_for_status_reports_last_gateway_error(self):
+        browser = object.__new__(Browser)
+        browser.profile = "qa-gestionpisos-public"
+        browser.status = Mock(return_value=(None, "gateway still unavailable"))
+
+        with patch("executor.time.sleep"):
+            with self.assertRaisesRegex(
+                InfrastructureFailure,
+                "gateway still unavailable",
+            ):
+                browser.wait_for_status(
+                    attempts=2,
+                    delay_seconds=0.1,
+                    timeout_ms=5000,
+                )
 
     def test_existing_profile_with_unexpected_port_is_rejected(self):
         browser = object.__new__(Browser)
