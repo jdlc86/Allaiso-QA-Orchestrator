@@ -130,7 +130,7 @@ class BrowserReadinessTests(unittest.TestCase):
 
         browser.ensure_profile()
 
-        browser.status.assert_called_once_with(timeout_ms=5000)
+        browser.status.assert_called_once_with(timeout_ms=15000)
         browser.run_cli.assert_not_called()
 
     def test_configured_profile_port_is_reused(self):
