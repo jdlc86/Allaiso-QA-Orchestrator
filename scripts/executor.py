@@ -35,12 +35,14 @@ PROJECT_POLICIES = {
         "allowed_url_prefixes": ("https://example.com/",),
         "browser_profile": "qa-demo-public",
         "browser_cdp_port": 18890,
+        "browser_color": "#5B8DEF",
     },
     "gestionpisos": {
         "environment": "test",
         "allowed_url_prefixes": ("https://jdlc86.github.io/gestionpisos/",),
         "browser_profile": "qa-gestionpisos-public",
         "browser_cdp_port": 18891,
+        "browser_color": "#8B5CF6",
     },
 }
 
@@ -178,6 +180,18 @@ def project_browser_port(project_id: str) -> int:
     return port
 
 
+def project_browser_color(project_id: str) -> str:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+    color = str(policy.get("browser_color") or "").strip()
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+        raise BlockedFailure(
+            f"Project {project_id!r} has an invalid managed-browser color policy."
+        )
+    return color
+
+
 def validate_target_url(project_id: str, url: str) -> None:
     policy = PROJECT_POLICIES.get(project_id)
     if policy is None:
@@ -302,11 +316,13 @@ class Browser:
         deadline: float,
         profile: str = "openclaw",
         profile_port: Optional[int] = None,
+        profile_color: Optional[str] = None,
     ) -> None:
         self.binary = find_openclaw()
         self.deadline = deadline
         self.profile = profile
         self.profile_port = profile_port
+        self.profile_color = profile_color
 
     def run(self, args: list[str], timeout_ms: int = 30000, json_output: bool = False):
         remaining = self.deadline - time.monotonic()
@@ -454,12 +470,22 @@ class Browser:
                 f"(rc={rc}): {detail}"
             )
 
+        if not self.profile_color:
+            raise InfrastructureFailure(
+                f"No color is reserved for isolated profile {self.profile!r}."
+            )
+
+        profile_path = f"browser.profiles.{self.profile}"
+        profile_value = json.dumps(
+            {"cdpPort": self.profile_port, "color": self.profile_color},
+            separators=(",", ":"),
+        )
         rc, stdout, stderr, _ = self.run_cli(
             [
                 "config",
                 "set",
-                config_path,
-                str(self.profile_port),
+                profile_path,
+                profile_value,
                 "--strict-json",
             ],
             30000,
@@ -579,6 +605,7 @@ def main() -> int:
             deadline,
             profile=project_browser_profile(project_id),
             profile_port=project_browser_port(project_id),
+            profile_color=project_browser_color(project_id),
         )
         browser.start()
         label = safe_label(run_id)
