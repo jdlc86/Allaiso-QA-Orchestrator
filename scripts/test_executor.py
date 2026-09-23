@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import sys
 import unittest
 from unittest.mock import Mock, patch
 
@@ -9,6 +10,7 @@ from executor import (
     project_browser_color,
     project_browser_port,
     project_browser_profile,
+    run_process_captured,
     snapshot_semantics,
 )
 
@@ -90,6 +92,21 @@ class OpenClawInvocationTests(unittest.TestCase):
             command,
             ["/usr/local/bin/openclaw", "browser", "status"],
         )
+
+
+class ProcessCaptureTests(unittest.TestCase):
+    def test_tempfile_capture_preserves_stdout_and_stderr(self):
+        rc, stdout, stderr = run_process_captured(
+            [
+                sys.executable,
+                "-c",
+                "import sys; print('stdout-ok'); print('stderr-ok', file=sys.stderr)",
+            ],
+            5,
+        )
+        self.assertEqual(rc, 0)
+        self.assertIn("stdout-ok", stdout)
+        self.assertIn("stderr-ok", stderr)
 
 
 class BrowserReadinessTests(unittest.TestCase):
