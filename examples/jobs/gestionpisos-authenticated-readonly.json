@@ -1,0 +1,52 @@
+{
+  "protocol_version": "0.1",
+  "job_id": "gestionpisos-authenticated-readonly",
+  "run_id": "gestionpisos-authenticated-readonly",
+  "project_id": "gestionpisos",
+  "requested_by": "chatgpt-orchestrator",
+  "objective": "Verify that the isolated GestionPisos QA browser profile contains a reusable fully authenticated session, without entering credentials or mutating the AUT.",
+  "environment": "test",
+  "mode": "steps",
+  "session_mode": "authenticated_reuse",
+  "preconditions": [
+    "The qa-gestionpisos-auth browser profile is isolated from the public smoke profile.",
+    "No password, TOTP code, token, cookie, or storage value is supplied by the job.",
+    "The check is strictly read-only."
+  ],
+  "steps": [
+    {
+      "id": "open",
+      "action": "Navigate to https://jdlc86.github.io/gestionpisos/",
+      "expect": "The protected PWA entry point opens in the isolated authenticated browser profile."
+    },
+    {
+      "id": "auth-session",
+      "action": "Verify GestionPisos authenticated session",
+      "expect": "The home surface becomes visible without redirecting to login, MFA challenge, or MFA setup."
+    },
+    {
+      "id": "capture",
+      "action": "Capture a screenshot.",
+      "expect": "Read-only evidence is captured only after the authenticated surface is confirmed."
+    }
+  ],
+  "assertions": [
+    "Navigation completed successfully.",
+    "Authenticated GestionPisos session is ready.",
+    "A screenshot was captured."
+  ],
+  "diagnostics": [
+    "Login means the reusable session is missing or expired and must be reported as BLOCKED.",
+    "MFA challenge or setup means human authentication is still required and must be reported as BLOCKED.",
+    "An unrecognized visible surface after the bounded wait is a functional FAIL, not an infrastructure error."
+  ],
+  "evidence": [
+    "screenshot"
+  ],
+  "timeout_seconds": 300,
+  "safety": {
+    "destructive_actions": false,
+    "production_writes": false,
+    "notes": "Authenticated session reuse only. No credential entry, form submission, arbitrary script execution, or AUT mutation."
+  }
+}

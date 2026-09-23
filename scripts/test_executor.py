@@ -7,6 +7,7 @@ from executor import (
     BlockedFailure,
     Browser,
     InfrastructureFailure,
+    classify_gestionpisos_auth_snapshot,
     job_session_mode,
     openclaw_command,
     project_browser_color,
@@ -51,6 +52,42 @@ class SnapshotSemanticsTests(unittest.TestCase):
             ]
         }
         self.assertEqual(snapshot_semantics(stdout, parsed), ("", ""))
+
+
+class AuthenticatedSessionClassificationTests(unittest.TestCase):
+    def test_accepts_only_authenticated_home_surface(self):
+        self.assertEqual(
+            classify_gestionpisos_auth_snapshot("GestionPisos", "GestionPisos"),
+            "authenticated",
+        )
+
+    def test_classifies_login_as_missing_or_expired_session(self):
+        self.assertEqual(
+            classify_gestionpisos_auth_snapshot(
+                "Allaiso · Acceso", "Acceso a GestionPisos"
+            ),
+            "login",
+        )
+
+    def test_classifies_mfa_challenge_and_setup(self):
+        self.assertEqual(
+            classify_gestionpisos_auth_snapshot(
+                "Allaiso · Verificación MFA", "Segundo factor"
+            ),
+            "mfa_challenge",
+        )
+        self.assertEqual(
+            classify_gestionpisos_auth_snapshot(
+                "Allaiso · Seguridad MFA", "Seguridad MFA"
+            ),
+            "mfa_setup",
+        )
+
+    def test_unknown_surface_stays_unknown(self):
+        self.assertEqual(
+            classify_gestionpisos_auth_snapshot("GestionPisos", ""),
+            "unknown",
+        )
 
 
 class OpenClawInvocationTests(unittest.TestCase):
