@@ -4,8 +4,10 @@ import unittest
 from unittest.mock import Mock, patch
 
 from executor import (
+    BlockedFailure,
     Browser,
     InfrastructureFailure,
+    job_session_mode,
     openclaw_command,
     project_browser_color,
     project_browser_port,
@@ -133,6 +135,29 @@ class BrowserReadinessTests(unittest.TestCase):
         )
         self.assertEqual(project_browser_port("gestionpisos"), 18891)
         self.assertEqual(project_browser_color("gestionpisos"), "#8B5CF6")
+        self.assertEqual(
+            project_browser_profile("gestionpisos", "authenticated_reuse"),
+            "qa-gestionpisos-auth",
+        )
+        self.assertEqual(
+            project_browser_port("gestionpisos", "authenticated_reuse"),
+            18892,
+        )
+        self.assertEqual(
+            project_browser_color("gestionpisos", "authenticated_reuse"),
+            "#D97706",
+        )
+
+    def test_session_mode_defaults_to_public(self):
+        self.assertEqual(job_session_mode({}), "public")
+        self.assertEqual(
+            job_session_mode({"session_mode": "authenticated_reuse"}),
+            "authenticated_reuse",
+        )
+
+    def test_session_mode_rejects_unknown_value(self):
+        with self.assertRaises(BlockedFailure):
+            job_session_mode({"session_mode": "arbitrary"})
 
     def test_gateway_start_is_idempotent_preflight(self):
         browser = object.__new__(Browser)

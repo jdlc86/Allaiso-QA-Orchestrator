@@ -14,6 +14,7 @@
     "objective": {"type": "string", "minLength": 1},
     "environment": {"type": "string", "enum": ["local", "development", "staging", "test", "production"]},
     "mode": {"type": "string", "enum": ["scenario", "steps"]},
+    "session_mode": {"type": "string", "enum": ["public", "authenticated_reuse"], "default": "public"},
     "preconditions": {"type": "array", "items": {"type": "string"}, "default": []},
     "scenario": {"type": "string"},
     "steps": {"type": "array", "items": {"type": "object", "required": ["id", "action"], "properties": {"id": {"type": "string"}, "action": {"type": "string"}, "expect": {"type": "string"}}, "additionalProperties": false}},
