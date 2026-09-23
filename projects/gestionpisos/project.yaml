@@ -22,6 +22,9 @@ safety:
     - "https://jdlc86.github.io/gestionpisos/"
 
 notes:
-  - "Public read-only smoke verified on 2026-09-22 (GitHub Actions run 35787573540)."
-  - "No credentials, cookies, tokens, form submissions, or AUT mutations are allowed."
+  - "Automatic OpenClaw Gateway bootstrap verified on 2026-09-23."
+  - "GestionPisos Public Smoke #15 passed in GitHub Actions run 35806072819 on commit 3db8b882afc45d631204e133fc5a796c7ce920d3."
+  - "QA Node Handshake #16 passed in GitHub Actions run 35806072832 on the same commit."
+  - "Public smoke evidence includes a real Chrome screenshot of the Allaiso access screen."
+  - "No credentials, cookies, tokens, form submissions, authenticated sessions, or AUT mutations are allowed yet."
   - "The workflow battery in the GestionPisos repository remains the source of truth for product PASS/FAIL."
