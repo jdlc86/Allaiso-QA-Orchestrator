@@ -146,7 +146,11 @@ def find_openclaw() -> str:
     return resolved
 
 
-def openclaw_command(binary: str, args: list[str]) -> list[str]:
+def openclaw_command(
+    binary: str,
+    args: list[str],
+    platform_name: Optional[str] = None,
+) -> list[str]:
     """Build a reliable OpenClaw invocation for the current platform.
 
     On Windows, Python's direct execution of the npm .CMD shim can remain
@@ -154,7 +158,7 @@ def openclaw_command(binary: str, args: list[str]) -> list[str]:
     PowerShell shim, which is the same path used successfully by the runner's
     native PowerShell steps.
     """
-    if os.name != "nt":
+    if (platform_name or os.name) != "nt":
         return [binary, *args]
 
     path = Path(binary)
