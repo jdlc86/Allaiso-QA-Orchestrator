@@ -59,6 +59,38 @@ jobs:
           & $python.Source @args scripts/validate_job.py examples/jobs/gestionpisos-public-smoke.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Diagnose OpenClaw runner context
+        continue-on-error: true
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .runtime | Out-Null
+          $lines = @()
+          $lines += "whoami=$(& whoami)"
+          $lines += "USERNAME=$env:USERNAME"
+          $lines += "USERPROFILE=$env:USERPROFILE"
+          $lines += "HOME=$env:HOME"
+          $lines += "SESSIONNAME=$env:SESSIONNAME"
+          $lines += "OPENCLAW_HOME=$env:OPENCLAW_HOME"
+          $lines += "OPENCLAW_CONFIG=$env:OPENCLAW_CONFIG"
+          $openclaw = Get-Command openclaw -ErrorAction SilentlyContinue
+          $lines += "openclaw_path=$($openclaw.Source)"
+          $lines += "cdp_18891_reachable=$(Test-NetConnection 127.0.0.1 -Port 18891 -InformationLevel Quiet -WarningAction SilentlyContinue)"
+
+          $gatewayOutput = (& openclaw gateway status 2>&1 | Out-String).Trim()
+          $lines += "gateway_status_exit=$LASTEXITCODE"
+          if ($gatewayOutput) {
+            $lines += ($gatewayOutput -replace '(?i)(token|secret|password)\s*[:=]\s*\S+', '$1=[REDACTED]')
+          }
+
+          $browserOutput = (& openclaw browser --browser-profile qa-gestionpisos-public --timeout 10000 --json status 2>&1 | Out-String).Trim()
+          $lines += "browser_status_exit=$LASTEXITCODE"
+          if ($browserOutput) {
+            $lines += $browserOutput
+          }
+
+          $lines | Tee-Object -FilePath .runtime/openclaw-context.txt
+          exit 0
+
       - name: Prepare unique runtime job
         shell: powershell
         run: |
@@ -122,6 +154,7 @@ jobs:
           name: gestionpisos-public-smoke-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .runtime/gestionpisos-public-job.json
+            .runtime/openclaw-context.txt
             results/gestionpisos/gestionpisos-public-*/result.json
             evidence/gestionpisos/gestionpisos-public-*/**
           if-no-files-found: warn
