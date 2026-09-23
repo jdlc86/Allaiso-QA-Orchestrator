@@ -146,6 +146,57 @@ def find_openclaw() -> str:
     return resolved
 
 
+def openclaw_command(
+    binary: str,
+    args: list[str],
+    platform_name: Optional[str] = None,
+) -> list[str]:
+    """Build a reliable OpenClaw invocation for the current platform.
+
+    On Windows, Python's direct execution of the npm .CMD shim can remain
+    attached even after OpenClaw has produced its output. Prefer the sibling
+    PowerShell shim, which is the same path used successfully by the runner's
+    native PowerShell steps.
+    """
+    if (platform_name or os.name) != "nt":
+        return [binary, *args]
+
+    path = Path(binary)
+    suffix = path.suffix.lower()
+
+    if suffix in {".cmd", ".bat"}:
+        powershell_shim = path.with_suffix(".ps1")
+        if powershell_shim.is_file():
+            path = powershell_shim
+            suffix = ".ps1"
+
+    if suffix == ".ps1":
+        powershell = shutil.which("powershell.exe") or shutil.which("powershell")
+        if not powershell:
+            raise BlockedFailure(
+                "PowerShell is required to execute the OpenClaw .ps1 shim on Windows."
+            )
+        return [
+            powershell,
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-File",
+            str(path),
+            *args,
+        ]
+
+    if suffix in {".cmd", ".bat"}:
+        command_prompt = shutil.which("cmd.exe") or os.getenv("COMSPEC")
+        if not command_prompt:
+            raise BlockedFailure(
+                "cmd.exe is required to execute the OpenClaw batch shim on Windows."
+            )
+        return [command_prompt, "/d", "/s", "/c", str(path), *args]
+
+    return [binary, *args]
+
+
 def safe_label(run_id: str) -> str:
     value = re.sub(r"[^A-Za-z0-9_.-]+", "-", run_id).strip("-")[:48] or "run"
     return f"qa-{value}"
@@ -329,13 +380,14 @@ class Browser:
         if remaining <= 0:
             raise InfrastructureFailure("Job timeout expired.")
         request_ms = max(1000, min(timeout_ms, int(remaining * 1000)))
-        command = [
-            self.binary, "browser", "--browser-profile", self.profile,
+        cli_args = [
+            "browser", "--browser-profile", self.profile,
             "--timeout", str(request_ms),
         ]
         if json_output:
-            command.append("--json")
-        command.extend(args)
+            cli_args.append("--json")
+        cli_args.extend(args)
+        command = openclaw_command(self.binary, cli_args)
         try:
             completed = subprocess.run(
                 command,
@@ -374,7 +426,7 @@ class Browser:
         if remaining <= 0:
             raise InfrastructureFailure("Job timeout expired.")
         request_ms = max(1000, min(timeout_ms, int(remaining * 1000)))
-        command = [self.binary, *args]
+        command = openclaw_command(self.binary, args)
         try:
             completed = subprocess.run(
                 command,
@@ -404,12 +456,13 @@ class Browser:
         if remaining <= 0:
             raise InfrastructureFailure("Job timeout expired.")
         request_ms = max(1000, min(timeout_ms, int(remaining * 1000)))
-        command = [
-            self.binary, "browser", "--timeout", str(request_ms),
+        cli_args = [
+            "browser", "--timeout", str(request_ms),
         ]
         if json_output:
-            command.append("--json")
-        command.extend(args)
+            cli_args.append("--json")
+        cli_args.extend(args)
+        command = openclaw_command(self.binary, cli_args)
         try:
             completed = subprocess.run(
                 command,
