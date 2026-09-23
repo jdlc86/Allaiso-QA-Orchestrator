@@ -54,13 +54,13 @@ class OpenClawInvocationTests(unittest.TestCase):
         with patch("executor.Path.is_file", return_value=True), patch(
             "executor.shutil.which",
             side_effect=lambda name: (
-                r"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+                r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
                 if name in {"powershell.exe", "powershell"}
                 else None
             ),
         ):
             command = openclaw_command(
-                r"C:\\Users\\julop\\AppData\\Roaming\\npm\\openclaw.CMD",
+                r"C:\Users\julop\AppData\Roaming\npm\openclaw.CMD",
                 ["browser", "--json", "status"],
                 platform_name="nt",
             )
@@ -68,12 +68,12 @@ class OpenClawInvocationTests(unittest.TestCase):
         self.assertEqual(
             command,
             [
-                r"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
                 "-NoLogo",
                 "-NoProfile",
                 "-NonInteractive",
                 "-File",
-                r"C:\\Users\\julop\\AppData\\Roaming\\npm\\openclaw.ps1",
+                r"C:\Users\julop\AppData\Roaming\npm\openclaw.ps1",
                 "browser",
                 "--json",
                 "status",
