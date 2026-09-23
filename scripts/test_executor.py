@@ -7,6 +7,7 @@ from executor import (
     BlockedFailure,
     Browser,
     InfrastructureFailure,
+    authenticated_shell_state,
     job_session_mode,
     openclaw_command,
     project_browser_color,
@@ -51,6 +52,38 @@ class SnapshotSemanticsTests(unittest.TestCase):
             ]
         }
         self.assertEqual(snapshot_semantics(stdout, parsed), ("", ""))
+
+
+class AuthenticatedShellStateTests(unittest.TestCase):
+    def test_accepts_verified_gestionpisos_shell(self):
+        self.assertEqual(
+            authenticated_shell_state("gestionpisos", "GestionPisos", "GestionPisos"),
+            "PASSED",
+        )
+
+    def test_login_and_mfa_routes_are_blocked_preconditions(self):
+        self.assertEqual(
+            authenticated_shell_state(
+                "gestionpisos",
+                "Allaiso · Acceso",
+                "Acceso a GestionPisos",
+            ),
+            "BLOCKED",
+        )
+        self.assertEqual(
+            authenticated_shell_state(
+                "gestionpisos",
+                "Allaiso · Verificación MFA",
+                "Segundo factor",
+            ),
+            "BLOCKED",
+        )
+
+    def test_unexpected_authenticated_route_is_failure(self):
+        self.assertEqual(
+            authenticated_shell_state("gestionpisos", "GestionPisos", "Error inesperado"),
+            "FAILED",
+        )
 
 
 class OpenClawInvocationTests(unittest.TestCase):
@@ -112,6 +145,33 @@ class ProcessCaptureTests(unittest.TestCase):
 
 
 class BrowserReadinessTests(unittest.TestCase):
+    def test_wait_for_semantics_retries_until_title_and_heading_are_visible(self):
+        browser = object.__new__(Browser)
+        browser.snapshot = Mock(side_effect=[
+            ('{"nodes":[]}', {"nodes": []}),
+            (
+                '{"nodes":[{"role":"RootWebArea","name":"GestionPisos"},'
+                '{"role":"heading","name":"GestionPisos"}]}',
+                {
+                    "nodes": [
+                        {"role": "RootWebArea", "name": "GestionPisos"},
+                        {"role": "heading", "name": "GestionPisos"},
+                    ]
+                },
+            ),
+        ])
+
+        with patch("executor.time.sleep") as sleep:
+            title, heading = browser.wait_for_semantics(
+                "qa-auth",
+                attempts=2,
+                delay_seconds=0.1,
+            )
+
+        self.assertEqual((title, heading), ("GestionPisos", "GestionPisos"))
+        self.assertEqual(browser.snapshot.call_count, 2)
+        sleep.assert_called_once_with(0.1)
+
     def test_ready_requires_running_and_cdp(self):
         self.assertTrue(Browser.status_ready({"running": True, "cdpReady": True}))
         self.assertFalse(Browser.status_ready({"running": True, "cdpReady": False}))
