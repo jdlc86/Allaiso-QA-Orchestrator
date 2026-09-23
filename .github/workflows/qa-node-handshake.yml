@@ -148,7 +148,8 @@ jobs:
             (& $redact $typeHelp)
             ""
             "=== openclaw browser fill --help ==="
-            (& $redact $fillHelp)          ) | Set-Content .runtime/openclaw-browser-help.txt -Encoding utf8
+            (& $redact $fillHelp)
+          ) | Set-Content .runtime/openclaw-browser-help.txt -Encoding utf8
 
       - name: Prepare unique runtime smoke job
         shell: powershell
