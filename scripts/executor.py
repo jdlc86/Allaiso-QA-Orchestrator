@@ -2,9 +2,9 @@
 """
 Bootstrap executor for Allaiso-QA-Orchestrator using OpenClaw browser.
 
-Protocol 0.1. This first canonical executor intentionally supports only the
-harmless smoke action family used to prove the QA node. Real AUT actions are
-added deliberately after the node handshake is verified.
+Protocol 0.1. The canonical executor supports the public smoke family plus a
+read-only authenticated-session readiness check. Real AUT mutations remain
+disabled and are added only through explicit later activation.
 
 Verified OpenClaw 2026.5.12 Windows path:
 start -> open(label) -> snapshot(label) -> focus(label) -> screenshot
@@ -48,6 +48,15 @@ PROJECT_POLICIES = {
         "authenticated_browser_profile": "qa-gestionpisos-auth",
         "authenticated_browser_cdp_port": 18892,
         "authenticated_browser_color": "#D97706",
+        "authenticated_shell_title": "GestionPisos",
+        "authenticated_shell_heading": "GestionPisos",
+        "authentication_blocked_headings": (
+            "Acceso a GestionPisos",
+            "Segundo factor",
+            "Seguridad MFA",
+            "Crear contraseña",
+            "Activa tu acceso",
+        ),
     },
 }
 
@@ -387,6 +396,30 @@ def snapshot_semantics(stdout: str, parsed: Any) -> tuple[str, str]:
     return title, heading
 
 
+def authenticated_shell_state(
+    project_id: str,
+    title: str,
+    heading: str,
+) -> str:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+
+    expected_title = str(policy.get("authenticated_shell_title") or "").strip()
+    expected_heading = str(policy.get("authenticated_shell_heading") or "").strip()
+    blocked_headings = tuple(policy.get("authentication_blocked_headings") or ())
+
+    if not expected_title or not expected_heading:
+        raise BlockedFailure(
+            f"Authenticated shell verification is not configured for project {project_id!r}."
+        )
+    if title == expected_title and heading == expected_heading:
+        return "PASSED"
+    if heading in blocked_headings:
+        return "BLOCKED"
+    return "FAILED"
+
+
 def normalize_media_path(raw: str) -> str:
     raw = raw.strip().strip('"').strip("'")
     if raw.upper().startswith("MEDIA:"):
@@ -678,6 +711,26 @@ class Browser:
             True,
         )
 
+    def wait_for_semantics(
+        self,
+        label: str,
+        attempts: int = 12,
+        delay_seconds: float = 1.0,
+    ) -> tuple[str, str]:
+        last_title = ""
+        last_heading = ""
+        for attempt in range(attempts):
+            stdout, parsed = self.snapshot(label)
+            last_title, last_heading = snapshot_semantics(stdout, parsed)
+            if last_title and last_heading:
+                return last_title, last_heading
+            if attempt + 1 < attempts:
+                time.sleep(delay_seconds)
+        raise InfrastructureFailure(
+            "Authenticated route did not expose visible semantic title/heading "
+            f"after {attempts} attempts; title={last_title!r}, heading={last_heading!r}."
+        )
+
     def screenshot(self, label: str) -> str:
         self.require(["focus", label], 30000)
         stdout, _ = self.require(["screenshot", "--full-page"], 30000)
@@ -712,7 +765,7 @@ def main() -> int:
     error: Optional[str] = None
     browser: Optional[Browser] = None
     label: Optional[str] = None
-    navigation_ok = semantic_ok = screenshot_ok = False
+    navigation_ok = semantic_ok = authenticated_ok = screenshot_ok = False
 
     try:
         job = load_job(Path(sys.argv[1]).expanduser().resolve())
@@ -762,6 +815,36 @@ def main() -> int:
                         f"Title={title!r}; first visible heading={heading!r}. "
                         f"Expected: {expect or 'semantic content can be read'}."
                     ))
+                elif action == "Verify authenticated session is active.":
+                    if session_mode != "authenticated_reuse":
+                        raise BlockedFailure(
+                            "Authenticated shell verification requires "
+                            "session_mode='authenticated_reuse'."
+                        )
+                    title, heading = browser.wait_for_semantics(label)
+                    shell_state = authenticated_shell_state(project_id, title, heading)
+                    if shell_state == "BLOCKED":
+                        raise BlockedFailure(
+                            "Authenticated session is unavailable or requires "
+                            f"interactive completion; title={title!r}, heading={heading!r}."
+                        )
+                    if shell_state == "FAILED":
+                        steps_out.append(step(
+                            step_id,
+                            "FAILED",
+                            "Unexpected authenticated route semantics; "
+                            f"title={title!r}, heading={heading!r}.",
+                        ))
+                        break
+                    authenticated_ok = True
+                    semantic_ok = True
+                    steps_out.append(step(
+                        step_id,
+                        "PASSED",
+                        f"Authenticated shell verified with title={title!r}, "
+                        f"heading={heading!r}. Expected: "
+                        f"{expect or 'authenticated shell is active'}.",
+                    ))
                 elif action.startswith("Capture a screenshot"):
                     stdout = browser.screenshot(label)
                     source = media_path(stdout)
@@ -802,6 +885,13 @@ def main() -> int:
                 passed, observation = navigation_ok, f"Navigation: {'OK' if navigation_ok else 'FAIL'}"
             elif assertion == "At least one visible semantic element was read.":
                 passed, observation = semantic_ok, f"Semantic inspection: {'OK' if semantic_ok else 'FAIL'}"
+            elif assertion == "Authenticated session is active.":
+                passed = authenticated_ok
+                observation = (
+                    "Authenticated session: OK"
+                    if authenticated_ok
+                    else "Authenticated session: unavailable or not verified"
+                )
             elif assertion == "A screenshot was captured.":
                 passed, observation = screenshot_ok, f"Screenshot evidence: {'OK' if screenshot_ok else 'FAIL'}"
             else:
