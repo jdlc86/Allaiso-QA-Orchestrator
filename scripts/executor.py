@@ -387,6 +387,26 @@ def snapshot_semantics(stdout: str, parsed: Any) -> tuple[str, str]:
     return title, heading
 
 
+def classify_gestionpisos_auth_snapshot(title: str, heading: str) -> str:
+    """Classify only known GestionPisos authentication surfaces.
+
+    This deliberately uses fixed product semantics instead of accepting arbitrary
+    selectors or JavaScript from a job. It is therefore read-only and keeps the
+    authenticated bootstrap allowlist narrow.
+    """
+    title = title.strip()
+    heading = heading.strip()
+    if title == "GestionPisos" and heading == "GestionPisos":
+        return "authenticated"
+    if title == "Allaiso · Acceso" or heading == "Acceso a GestionPisos":
+        return "login"
+    if title == "Allaiso · Verificación MFA" or heading == "Segundo factor":
+        return "mfa_challenge"
+    if title == "Allaiso · Seguridad MFA" or heading == "Seguridad MFA":
+        return "mfa_setup"
+    return "unknown"
+
+
 def normalize_media_path(raw: str) -> str:
     raw = raw.strip().strip('"').strip("'")
     if raw.upper().startswith("MEDIA:"):
@@ -712,7 +732,7 @@ def main() -> int:
     error: Optional[str] = None
     browser: Optional[Browser] = None
     label: Optional[str] = None
-    navigation_ok = semantic_ok = screenshot_ok = False
+    navigation_ok = semantic_ok = screenshot_ok = authenticated_session_ok = False
 
     try:
         job = load_job(Path(sys.argv[1]).expanduser().resolve())
@@ -762,6 +782,56 @@ def main() -> int:
                         f"Title={title!r}; first visible heading={heading!r}. "
                         f"Expected: {expect or 'semantic content can be read'}."
                     ))
+                elif action == "Verify GestionPisos authenticated session":
+                    if project_id != "gestionpisos" or session_mode != "authenticated_reuse":
+                        raise BlockedFailure(
+                            "Authenticated-session verification is only allowed for "
+                            "GestionPisos authenticated_reuse jobs."
+                        )
+
+                    last_title = ""
+                    last_heading = ""
+                    for attempt in range(8):
+                        stdout, parsed = browser.snapshot(label)
+                        title, heading = snapshot_semantics(stdout, parsed)
+                        last_title, last_heading = title, heading
+                        auth_state = classify_gestionpisos_auth_snapshot(title, heading)
+
+                        if auth_state == "authenticated":
+                            authenticated_session_ok = True
+                            semantic_ok = True
+                            steps_out.append(step(
+                                step_id,
+                                "PASSED",
+                                "GestionPisos authenticated surface is visible without "
+                                "credential entry or AUT mutation."
+                            ))
+                            break
+                        if auth_state == "login":
+                            raise BlockedFailure(
+                                "The isolated QA browser profile has no reusable authenticated "
+                                "session or the session expired."
+                            )
+                        if auth_state == "mfa_challenge":
+                            raise BlockedFailure(
+                                "The reusable QA session requires an MFA challenge before "
+                                "authenticated read-only testing can continue."
+                            )
+                        if auth_state == "mfa_setup":
+                            raise BlockedFailure(
+                                "The reusable QA session requires MFA enrollment before "
+                                "authenticated read-only testing can continue."
+                            )
+                        if attempt < 7:
+                            time.sleep(1)
+                    else:
+                        steps_out.append(step(
+                            step_id,
+                            "FAILED",
+                            "Could not classify the authenticated GestionPisos surface after "
+                            f"waiting; title={last_title!r}, heading={last_heading!r}."
+                        ))
+                        break
                 elif action.startswith("Capture a screenshot"):
                     stdout = browser.screenshot(label)
                     source = media_path(stdout)
@@ -802,6 +872,13 @@ def main() -> int:
                 passed, observation = navigation_ok, f"Navigation: {'OK' if navigation_ok else 'FAIL'}"
             elif assertion == "At least one visible semantic element was read.":
                 passed, observation = semantic_ok, f"Semantic inspection: {'OK' if semantic_ok else 'FAIL'}"
+            elif assertion == "Authenticated GestionPisos session is ready.":
+                passed = authenticated_session_ok
+                observation = (
+                    "Authenticated session: READY"
+                    if authenticated_session_ok
+                    else "Authenticated session: NOT READY"
+                )
             elif assertion == "A screenshot was captured.":
                 passed, observation = screenshot_ok, f"Screenshot evidence: {'OK' if screenshot_ok else 'FAIL'}"
             else:
