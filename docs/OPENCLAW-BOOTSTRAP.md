@@ -56,6 +56,27 @@ Record the discovered adapter command/configuration locally. If repository code 
 
 If OpenClaw cannot expose the required automation capabilities, report `BLOCKED` with the missing capability. Do not fake compatibility.
 
+### Verified Windows bootstrap behavior
+
+The canonical executor currently performs the OpenClaw bootstrap itself before preparing or starting the managed browser profile:
+
+1. invoke `gateway start --json`;
+2. reuse the existing Gateway when it is already running;
+3. start the registered Gateway when it is stopped;
+4. classify an inability to start the Gateway as an infrastructure error;
+5. prepare/reuse the project-scoped browser profile;
+6. start or reuse the browser and continue with the requested smoke scenario.
+
+Manual Gateway startup is therefore **not a prerequisite** for normal QA runs.
+
+This behavior was verified on the real Windows QA node with OpenClaw 2026.5.12 on 2026-09-23:
+
+- GestionPisos Public Smoke run `35806072819`: **SUCCESS**.
+- QA Node Handshake run `35806072832`: **SUCCESS**.
+- Orchestrator commit: `3db8b882afc45d631204e133fc5a796c7ce920d3`.
+
+The same public smoke also produced a real screenshot of the GestionPisos / Allaiso access screen through Chrome. These checks validate infrastructure/bootstrap only; they do **not** authorize authenticated sessions or AUT writes.
+
 ## 5. Runtime dependencies
 
 The implementation milestone will provide a bootstrap script and lockfile. Until then, do not globally install speculative packages. Prefer project-local/virtual environments. Browser automation dependencies should be pinned once the adapter choice is verified.
@@ -73,10 +94,11 @@ Before testing a real AUT, prove these independently:
 1. runner appears online in GitHub;
 2. a harmless workflow is routed specifically to label `allaiso-qa`;
 3. executor can parse a schema-valid demo job;
-4. browser opens a harmless test page;
-5. screenshot is captured;
-6. structured result is produced;
-7. no secret appears in logs/evidence.
+4. Gateway bootstrap succeeds without requiring manual startup;
+5. browser opens a harmless test page;
+6. screenshot is captured;
+7. structured result is produced;
+8. no secret appears in logs/evidence.
 
 Only then register a real application under `projects/`.
 
