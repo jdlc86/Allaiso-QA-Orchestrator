@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from executor import (
     Browser,
     InfrastructureFailure,
+    openclaw_command,
     project_browser_color,
     project_browser_port,
     project_browser_profile,
@@ -46,6 +47,49 @@ class SnapshotSemanticsTests(unittest.TestCase):
             ]
         }
         self.assertEqual(snapshot_semantics(stdout, parsed), ("", ""))
+
+
+class OpenClawInvocationTests(unittest.TestCase):
+    def test_windows_cmd_prefers_powershell_shim(self):
+        with patch("executor.Path.is_file", return_value=True), patch(
+            "executor.shutil.which",
+            side_effect=lambda name: (
+                r"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"
+                if name in {"powershell.exe", "powershell"}
+                else None
+            ),
+        ):
+            command = openclaw_command(
+                r"C:\\Users\\julop\\AppData\\Roaming\\npm\\openclaw.CMD",
+                ["browser", "--json", "status"],
+                platform_name="nt",
+            )
+
+        self.assertEqual(
+            command,
+            [
+                r"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+                "-NoLogo",
+                "-NoProfile",
+                "-NonInteractive",
+                "-File",
+                r"C:\\Users\\julop\\AppData\\Roaming\\npm\\openclaw.ps1",
+                "browser",
+                "--json",
+                "status",
+            ],
+        )
+
+    def test_non_windows_invokes_binary_directly(self):
+        command = openclaw_command(
+            "/usr/local/bin/openclaw",
+            ["browser", "status"],
+            platform_name="posix",
+        )
+        self.assertEqual(
+            command,
+            ["/usr/local/bin/openclaw", "browser", "status"],
+        )
 
 
 class BrowserReadinessTests(unittest.TestCase):
