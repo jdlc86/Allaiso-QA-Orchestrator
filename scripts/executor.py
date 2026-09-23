@@ -17,6 +17,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -195,6 +196,34 @@ def openclaw_command(
         return [command_prompt, "/d", "/s", "/c", str(path), *args]
 
     return [binary, *args]
+
+
+def run_process_captured(command: list[str], timeout_seconds: float):
+    """Run a CLI without PIPE-backed stdio.
+
+    OpenClaw can leave descendant processes holding inherited PIPE handles on
+    Windows, which makes subprocess.communicate() wait until timeout even after
+    the CLI itself has finished. Temporary files avoid that pipe-lifetime
+    coupling while preserving stdout/stderr for diagnostics.
+    """
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as stdout_file, \
+         tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as stderr_file:
+        completed = subprocess.run(
+            command,
+            cwd=repo_root(),
+            shell=False,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout_seconds,
+        )
+        stdout_file.seek(0)
+        stderr_file.seek(0)
+        stdout = stdout_file.read()
+        stderr = stderr_file.read()
+    return completed.returncode, stdout, stderr
 
 
 def safe_label(run_id: str) -> str:
@@ -389,23 +418,17 @@ class Browser:
         cli_args.extend(args)
         command = openclaw_command(self.binary, cli_args)
         try:
-            completed = subprocess.run(
+            returncode, raw_stdout, raw_stderr = run_process_captured(
                 command,
-                cwd=repo_root(),
-                shell=False,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=max(1.0, min(remaining, request_ms / 1000 + 12)),
+                max(1.0, min(remaining, request_ms / 1000 + 12)),
             )
         except subprocess.TimeoutExpired as exc:
             raise InfrastructureFailure(
                 f"OpenClaw command timed out: {' '.join(args)}"
             ) from exc
-        stdout = redact((completed.stdout or "").strip())
-        stderr = redact((completed.stderr or "").strip())
-        return completed.returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
+        stdout = redact((raw_stdout or "").strip())
+        stderr = redact((raw_stderr or "").strip())
+        return returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
 
     def require(self, args: list[str], timeout_ms: int = 30000, json_output: bool = False):
         rc, stdout, stderr, parsed = self.run(args, timeout_ms, json_output)
@@ -428,23 +451,17 @@ class Browser:
         request_ms = max(1000, min(timeout_ms, int(remaining * 1000)))
         command = openclaw_command(self.binary, args)
         try:
-            completed = subprocess.run(
+            returncode, raw_stdout, raw_stderr = run_process_captured(
                 command,
-                cwd=repo_root(),
-                shell=False,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=max(1.0, min(remaining, request_ms / 1000 + 12)),
+                max(1.0, min(remaining, request_ms / 1000 + 12)),
             )
         except subprocess.TimeoutExpired as exc:
             raise InfrastructureFailure(
                 f"OpenClaw CLI command timed out: {' '.join(args)}"
             ) from exc
-        stdout = redact((completed.stdout or "").strip())
-        stderr = redact((completed.stderr or "").strip())
-        return completed.returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
+        stdout = redact((raw_stdout or "").strip())
+        stderr = redact((raw_stderr or "").strip())
+        return returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
 
     def run_unscoped(
         self,
@@ -464,23 +481,17 @@ class Browser:
         cli_args.extend(args)
         command = openclaw_command(self.binary, cli_args)
         try:
-            completed = subprocess.run(
+            returncode, raw_stdout, raw_stderr = run_process_captured(
                 command,
-                cwd=repo_root(),
-                shell=False,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=max(1.0, min(remaining, request_ms / 1000 + 12)),
+                max(1.0, min(remaining, request_ms / 1000 + 12)),
             )
         except subprocess.TimeoutExpired as exc:
             raise InfrastructureFailure(
                 f"OpenClaw command timed out: {' '.join(args)}"
             ) from exc
-        stdout = redact((completed.stdout or "").strip())
-        stderr = redact((completed.stderr or "").strip())
-        return completed.returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
+        stdout = redact((raw_stdout or "").strip())
+        stderr = redact((raw_stderr or "").strip())
+        return returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
 
     def ensure_profile(self) -> None:
         # Persistent browser-profile mutations are rejected when browser
