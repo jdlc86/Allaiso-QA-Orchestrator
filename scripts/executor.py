@@ -457,6 +457,7 @@ class Browser:
                     f"unexpected cdpPort={configured_port!r}; expected "
                     f"{self.profile_port}."
                 )
+            self.wait_for_status()
             return
 
         detail = stderr or stdout or "no diagnostic output"
@@ -498,12 +499,7 @@ class Browser:
                 f"{self.profile!r} in local config (rc={rc}): {detail}"
             )
 
-        status, diagnostic = self.status(timeout_ms=15000)
-        if status is None:
-            raise InfrastructureFailure(
-                f"OpenClaw profile {self.profile!r} was configured but is not "
-                f"addressable: {diagnostic}"
-            )
+        self.wait_for_status()
 
     def status(self, timeout_ms: int = 15000) -> tuple[Optional[dict[str, Any]], str]:
         try:
@@ -515,6 +511,25 @@ class Browser:
         if not isinstance(parsed, dict):
             return None, "browser status did not return a JSON object"
         return parsed, ""
+
+    def wait_for_status(
+        self,
+        attempts: int = 8,
+        delay_seconds: float = 2.0,
+        timeout_ms: int = 5000,
+    ) -> dict[str, Any]:
+        diagnostic = "browser status unavailable"
+        for attempt in range(attempts):
+            status, diagnostic = self.status(timeout_ms=timeout_ms)
+            if status is not None:
+                return status
+            if attempt + 1 < attempts:
+                time.sleep(delay_seconds)
+
+        raise InfrastructureFailure(
+            f"OpenClaw profile {self.profile!r} did not become addressable "
+            f"after Gateway reload: {diagnostic}"
+        )
 
     @staticmethod
     def status_ready(status: Optional[dict[str, Any]]) -> bool:
