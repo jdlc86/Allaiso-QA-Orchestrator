@@ -2,6 +2,14 @@ name: GestionPisos Authenticated Readonly
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/gestionpisos-authenticated-readonly.yml"
+      - "scripts/executor.py"
+      - "scripts/test_executor.py"
+      - "scripts/validate_job.py"
+      - "examples/jobs/gestionpisos-authenticated-readonly.json"
+      - "projects/gestionpisos/project.yaml"
 
 permissions:
   contents: read
@@ -11,7 +19,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  contract-validation:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, allaiso-qa]
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+
+      - name: Executor regression
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) {
+            throw "Python is not available to the GitHub runner identity."
+          }
+          & $python.Source @args scripts/test_executor.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate authenticated read-only contract
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) {
+            throw "Python is not available to the GitHub runner identity."
+          }
+          & $python.Source @args scripts/validate_job.py examples/jobs/gestionpisos-authenticated-readonly.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
   authenticated-readonly:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, allaiso-qa]
     timeout-minutes: 10
 
