@@ -107,6 +107,34 @@ jobs:
           $lines | Tee-Object -FilePath .runtime/openclaw-context.txt
           exit 0
 
+      - name: Probe OpenClaw browser capabilities
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .runtime | Out-Null
+
+          $versionOutput = (& openclaw --version 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "OpenClaw version probe failed."
+          }
+
+          $browserHelp = (& openclaw browser --help 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "OpenClaw browser help probe failed."
+          }
+
+          $redact = {
+            param([string]$value)
+            if (-not $value) { return "" }
+            return ($value -replace '(?i)(token|secret|password|authorization)\s*[:=]\s*\S+', '$1=[REDACTED]')
+          }
+
+          @(
+            "version=$(& $redact $versionOutput)"
+            ""
+            "=== openclaw browser --help ==="
+            (& $redact $browserHelp)
+          ) | Set-Content .runtime/openclaw-browser-help.txt -Encoding utf8
+
       - name: Prepare unique runtime smoke job
         shell: powershell
         run: |
@@ -171,6 +199,7 @@ jobs:
           path: |
             .runtime/node-probe.json
             .runtime/openclaw-context.txt
+            .runtime/openclaw-browser-help.txt
             .runtime/handshake-job.json
             results/demo/gh-handshake-*/result.json
             evidence/demo/gh-handshake-*/**
