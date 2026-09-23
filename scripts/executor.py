@@ -493,6 +493,22 @@ class Browser:
         stderr = redact((raw_stderr or "").strip())
         return returncode, stdout, stderr, fuzzy_json(stdout) if json_output else None
 
+    def ensure_gateway(self) -> None:
+        # The managed Gateway service is the control plane for browser
+        # requests. gateway start is intentionally idempotent: on a healthy
+        # running service it is a no-op; on a registered stopped service it
+        # starts it. This removes the need for a human to pre-start OpenClaw.
+        rc, stdout, stderr, _ = self.run_cli(
+            ["gateway", "start", "--json"],
+            60000,
+            True,
+        )
+        if rc != 0:
+            detail = stderr or stdout or "no diagnostic output"
+            raise InfrastructureFailure(
+                f"OpenClaw Gateway could not be started (rc={rc}): {detail}"
+            )
+
     def ensure_profile(self) -> None:
         # Persistent browser-profile mutations are rejected when browser
         # requests are routed through a node proxy. Provision the named local
@@ -604,6 +620,7 @@ class Browser:
         )
 
     def start(self) -> None:
+        self.ensure_gateway()
         self.ensure_profile()
 
         # A previous run can leave the dedicated managed browser alive. An
