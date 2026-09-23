@@ -134,6 +134,28 @@ class BrowserReadinessTests(unittest.TestCase):
         self.assertEqual(project_browser_port("gestionpisos"), 18891)
         self.assertEqual(project_browser_color("gestionpisos"), "#8B5CF6")
 
+    def test_gateway_start_is_idempotent_preflight(self):
+        browser = object.__new__(Browser)
+        browser.run_cli = Mock(return_value=(0, '{"ok":true}', '', {"ok": True}))
+
+        browser.ensure_gateway()
+
+        browser.run_cli.assert_called_once_with(
+            ["gateway", "start", "--json"],
+            60000,
+            True,
+        )
+
+    def test_gateway_start_failure_is_infrastructure_error(self):
+        browser = object.__new__(Browser)
+        browser.run_cli = Mock(return_value=(1, '', 'service unavailable', None))
+
+        with self.assertRaisesRegex(
+            InfrastructureFailure,
+            "Gateway could not be started.*service unavailable",
+        ):
+            browser.ensure_gateway()
+
     def test_existing_profile_is_reused_without_config_write(self):
         browser = object.__new__(Browser)
         browser.profile = "qa-gestionpisos-public"
