@@ -122,6 +122,16 @@ jobs:
             throw "OpenClaw browser help probe failed."
           }
 
+          $typeHelp = (& openclaw browser type --help 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "OpenClaw browser type help probe failed."
+          }
+
+          $fillHelp = (& openclaw browser fill --help 2>&1 | Out-String).Trim()
+          if ($LASTEXITCODE -ne 0) {
+            throw "OpenClaw browser fill help probe failed."
+          }
+
           $redact = {
             param([string]$value)
             if (-not $value) { return "" }
@@ -133,6 +143,12 @@ jobs:
             ""
             "=== openclaw browser --help ==="
             (& $redact $browserHelp)
+            ""
+            "=== openclaw browser type --help ==="
+            (& $redact $typeHelp)
+            ""
+            "=== openclaw browser fill --help ==="
+            (& $redact $fillHelp)
           ) | Set-Content .runtime/openclaw-browser-help.txt -Encoding utf8
 
       - name: Prepare unique runtime smoke job
