@@ -27,6 +27,7 @@ from urllib.parse import unquote, urlparse
 PROTOCOL_VERSION = "0.1"
 STEP_STATUSES = {"PASSED", "FAILED", "BLOCKED", "ERROR", "SKIPPED"}
 RESULT_STATUSES = {"PASSED", "FAILED", "BLOCKED", "ERROR", "CANCELLED"}
+SESSION_MODES = {"public", "authenticated_reuse"}
 
 # Bootstrap-stage allowlist. Keep this deliberately narrow until authenticated
 # AUT execution is explicitly activated.
@@ -44,6 +45,9 @@ PROJECT_POLICIES = {
         "browser_profile": "qa-gestionpisos-public",
         "browser_cdp_port": 18891,
         "browser_color": "#8B5CF6",
+        "authenticated_browser_profile": "qa-gestionpisos-auth",
+        "authenticated_browser_cdp_port": 18892,
+        "authenticated_browser_color": "#D97706",
     },
 }
 
@@ -125,6 +129,11 @@ def validate_job(job: dict[str, Any]) -> None:
     if job["environment"] != policy["environment"]:
         raise BlockedFailure(
             f"Environment {job['environment']!r} is not allowed for project {project_id!r}."
+        )
+    session_mode = job_session_mode(job)
+    if session_mode == "authenticated_reuse" and not policy.get("authenticated_browser_profile"):
+        raise BlockedFailure(
+            f"Authenticated session reuse is not enabled for project {project_id!r}."
         )
 
 
@@ -236,11 +245,21 @@ def extract_url(action: str) -> str:
     return match.group(0).rstrip(".,);]") if match else "https://example.com"
 
 
-def project_browser_profile(project_id: str) -> str:
+def job_session_mode(job: dict[str, Any]) -> str:
+    mode = str(job.get("session_mode") or "public").strip()
+    if mode not in SESSION_MODES:
+        raise BlockedFailure(f"Unsupported session_mode: {mode!r}")
+    return mode
+
+
+def project_browser_profile(project_id: str, session_mode: str = "public") -> str:
     policy = PROJECT_POLICIES.get(project_id)
     if policy is None:
         raise BlockedFailure(f"Project is not allowlisted: {project_id}")
-    profile = str(policy.get("browser_profile") or "").strip()
+    if session_mode not in SESSION_MODES:
+        raise BlockedFailure(f"Unsupported session_mode: {session_mode!r}")
+    key = "browser_profile" if session_mode == "public" else "authenticated_browser_profile"
+    profile = str(policy.get(key) or "").strip()
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", profile):
         raise BlockedFailure(
             f"Project {project_id!r} has an invalid browser profile policy."
@@ -248,11 +267,14 @@ def project_browser_profile(project_id: str) -> str:
     return profile
 
 
-def project_browser_port(project_id: str) -> int:
+def project_browser_port(project_id: str, session_mode: str = "public") -> int:
     policy = PROJECT_POLICIES.get(project_id)
     if policy is None:
         raise BlockedFailure(f"Project is not allowlisted: {project_id}")
-    port = policy.get("browser_cdp_port")
+    if session_mode not in SESSION_MODES:
+        raise BlockedFailure(f"Unsupported session_mode: {session_mode!r}")
+    key = "browser_cdp_port" if session_mode == "public" else "authenticated_browser_cdp_port"
+    port = policy.get(key)
     if not isinstance(port, int) or not 18800 <= port <= 18899:
         raise BlockedFailure(
             f"Project {project_id!r} has an invalid managed-browser CDP port policy."
@@ -260,11 +282,14 @@ def project_browser_port(project_id: str) -> int:
     return port
 
 
-def project_browser_color(project_id: str) -> str:
+def project_browser_color(project_id: str, session_mode: str = "public") -> str:
     policy = PROJECT_POLICIES.get(project_id)
     if policy is None:
         raise BlockedFailure(f"Project is not allowlisted: {project_id}")
-    color = str(policy.get("browser_color") or "").strip()
+    if session_mode not in SESSION_MODES:
+        raise BlockedFailure(f"Unsupported session_mode: {session_mode!r}")
+    key = "browser_color" if session_mode == "public" else "authenticated_browser_color"
+    color = str(policy.get(key) or "").strip()
     if not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
         raise BlockedFailure(
             f"Project {project_id!r} has an invalid managed-browser color policy."
@@ -695,13 +720,14 @@ def main() -> int:
         run_id = str(job.get("run_id") or run_id)
         project_id = str(job.get("project_id") or project_id)
         validate_job(job)
+        session_mode = job_session_mode(job)
 
         deadline = time.monotonic() + int(job.get("timeout_seconds", 900))
         browser = Browser(
             deadline,
-            profile=project_browser_profile(project_id),
-            profile_port=project_browser_port(project_id),
-            profile_color=project_browser_color(project_id),
+            profile=project_browser_profile(project_id, session_mode),
+            profile_port=project_browser_port(project_id, session_mode),
+            profile_color=project_browser_color(project_id, session_mode),
         )
         browser.start()
         label = safe_label(run_id)
