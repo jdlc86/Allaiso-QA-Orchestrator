@@ -136,7 +136,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path .runtime | Out-Null
           $job = Get-Content examples/jobs/gestionpisos-gate-1-1-checklist.json -Raw | ConvertFrom-Json
-          $suffix = "\${env:GITHUB_RUN_ID}-\${env:GITHUB_RUN_ATTEMPT}"
+          $suffix = "${env:GITHUB_RUN_ID}-${env:GITHUB_RUN_ATTEMPT}"
           $job.job_id = "gestionpisos-gate11-$suffix"
           $job.run_id = "gestionpisos-gate11-$suffix"
           $job.controlled_write.request_key = "qa-gate11-$suffix"
@@ -189,7 +189,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: gestionpisos-gate-1-1-\${{ github.run_id }}-\${{ github.run_attempt }}
+          name: gestionpisos-gate-1-1-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .runtime/gestionpisos-gate11-job.json
             .runtime/openclaw-gate11-context.txt
