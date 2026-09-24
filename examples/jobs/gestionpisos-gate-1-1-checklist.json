@@ -1,0 +1,44 @@
+{
+  "protocol_version": "0.1",
+  "job_id": "gestionpisos-gate11-checklist-template",
+  "run_id": "gestionpisos-gate11-checklist-template",
+  "project_id": "gestionpisos",
+  "requested_by": "chatgpt-orchestrator",
+  "objective": "Execute the fixed fixture-scoped GestionPisos Gate 1.1 Checklist scenario.",
+  "environment": "test",
+  "mode": "steps",
+  "session_mode": "authenticated_reuse",
+  "preconditions": [
+    "Reusable authenticated QA session is valid.",
+    "REFPISO1 fixture matches the versioned controlled-write policy.",
+    "Controlled write policy is explicitly enabled for workflow_checklist_gate_1_1."
+  ],
+  "steps": [
+    {
+      "id": "gate-1-1",
+      "action": "Run GestionPisos Gate 1.1 controlled checklist",
+      "expect": "One definition, one execution, one task, correct checklist closure, idempotent replay, history evidence."
+    }
+  ],
+  "controlled_write": {
+    "write_scope": "fixtures_only",
+    "action_family": "workflow_checklist_gate_1_1",
+    "fixture_key": "refpiso1_hab1_active_occupancy",
+    "request_key": "qa-gate11-template-0001"
+  },
+  "assertions": [
+    "Authenticated GestionPisos session is ready.",
+    "Gate 1.1 checklist invariants passed.",
+    "Gate 1.1 history is visible.",
+    "A screenshot was captured."
+  ],
+  "evidence": [
+    "screenshot"
+  ],
+  "timeout_seconds": 600,
+  "safety": {
+    "destructive_actions": false,
+    "production_writes": false,
+    "notes": "Production is used as the controlled test environment; this job may mutate only the versioned fixture through the allowlisted Gate 1.1 RPC family when write-policy.enabled is true."
+  }
+}
