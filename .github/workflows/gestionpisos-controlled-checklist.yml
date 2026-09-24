@@ -1,0 +1,199 @@
+name: GestionPisos Controlled Checklist Gate 1.1
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".qa/requests/gestionpisos-gate-1-1-checklist.json"
+  pull_request:
+    paths:
+      - ".github/workflows/gestionpisos-controlled-checklist.yml"
+      - "scripts/gestionpisos_gate_1_1.py"
+      - "scripts/test_gestionpisos_gate_1_1.py"
+      - "scripts/executor.py"
+      - "scripts/test_executor.py"
+      - "scripts/validate_job.py"
+      - "schemas/job.schema.json"
+      - "examples/jobs/gestionpisos-gate-1-1-checklist.json"
+      - "projects/gestionpisos/write-policy.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gestionpisos-controlled-checklist
+  cancel-in-progress: false
+
+jobs:
+  contract-validation:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, allaiso-qa]
+    timeout-minutes: 5
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+
+      - name: Executor regression
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available to the GitHub runner identity." }
+          & $python.Source @args scripts/test_executor.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Gate 1.1 regression
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available to the GitHub runner identity." }
+          & $python.Source @args scripts/test_gestionpisos_gate_1_1.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate controlled Gate 1.1 contract
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available to the GitHub runner identity." }
+          & $python.Source @args scripts/validate_job.py examples/jobs/gestionpisos-gate-1-1-checklist.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  controlled-checklist:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: [self-hosted, allaiso-qa]
+    timeout-minutes: 12
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+
+      - name: Gate 1.1 regression
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available to the GitHub runner identity." }
+          & $python.Source @args scripts/test_executor.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & $python.Source @args scripts/test_gestionpisos_gate_1_1.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Validate controlled Gate 1.1 contract
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available to the GitHub runner identity." }
+          & $python.Source @args scripts/validate_job.py examples/jobs/gestionpisos-gate-1-1-checklist.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Diagnose isolated authenticated profile
+        continue-on-error: true
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .runtime | Out-Null
+          $lines = @()
+          $lines += "whoami=$(& whoami)"
+          $lines += "SESSIONNAME=$env:SESSIONNAME"
+          $openclaw = Get-Command openclaw -ErrorAction SilentlyContinue
+          $lines += "openclaw_path=$($openclaw.Source)"
+          $gatewayOutput = (& openclaw gateway status 2>&1 | Out-String).Trim()
+          $lines += "gateway_status_exit=$LASTEXITCODE"
+          if ($gatewayOutput) {
+            $lines += ($gatewayOutput -replace '(?i)(token|secret|password)\s*[:=]\s*\S+', '$1=[REDACTED]')
+          }
+          $browserOutput = (& openclaw browser --browser-profile qa-gestionpisos-auth --timeout 10000 --json status 2>&1 | Out-String).Trim()
+          $lines += "browser_status_exit=$LASTEXITCODE"
+          if ($browserOutput) { $lines += $browserOutput }
+          $lines | Tee-Object -FilePath .runtime/openclaw-gate11-context.txt
+          exit 0
+
+      - name: Prepare unique runtime job
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force -Path .runtime | Out-Null
+          $job = Get-Content examples/jobs/gestionpisos-gate-1-1-checklist.json -Raw | ConvertFrom-Json
+          $suffix = "${env:GITHUB_RUN_ID}-${env:GITHUB_RUN_ATTEMPT}"
+          $job.job_id = "gestionpisos-gate11-$suffix"
+          $job.run_id = "gestionpisos-gate11-$suffix"
+          $job.controlled_write.request_key = "qa-gate11-$suffix"
+          $job | ConvertTo-Json -Depth 20 | Set-Content .runtime/gestionpisos-gate11-job.json -Encoding utf8
+          "QA_RUN_ID=$($job.run_id)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Execute controlled Checklist Gate 1.1
+        id: execute_gate
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available to the GitHub runner identity." }
+          & $python.Source @args scripts/gestionpisos_gate_1_1.py .runtime/gestionpisos-gate11-job.json
+          exit $LASTEXITCODE
+
+      - name: Verify controlled Checklist Gate 1.1 result
+        if: always()
+        shell: powershell
+        run: |
+          if (-not $env:QA_RUN_ID) { throw "QA_RUN_ID was not prepared." }
+          $resultPath = "results/gestionpisos/$env:QA_RUN_ID/result.json"
+          if (-not (Test-Path $resultPath)) { throw "Expected Gate 1.1 result was not produced: $resultPath" }
+          $result = Get-Content $resultPath -Raw | ConvertFrom-Json
+          Write-Host "Gate 1.1 status: $($result.status)"
+          Write-Host "Gate 1.1 summary: $($result.summary)"
+          if ($result.status -ne "PASSED") {
+            $diagnosticText = (($result.diagnostics | ForEach-Object { [string]$_ }) -join " ")
+            throw "Gate 1.1 did not pass: $diagnosticText"
+          }
+          if (-not $result.receipt -or $result.receipt.execution_count -ne 1 -or $result.receipt.task_count -ne 1) {
+            throw "Gate 1.1 passed without the expected unique execution/task receipt."
+          }
+          if ($result.receipt.execution_status -ne "completed" -or $result.receipt.task_status -ne "completed") {
+            throw "Gate 1.1 final task/execution status is not completed."
+          }
+          if ($result.receipt.checklist_event_count -ne 2 -or $result.receipt.checklist_history_count -ne 2) {
+            throw "Gate 1.1 checklist history/event counts are incorrect."
+          }
+          if (-not $result.evidence -or $result.evidence.Count -lt 1) {
+            throw "Gate 1.1 passed without screenshot evidence."
+          }
+
+      - name: Upload controlled Gate 1.1 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestionpisos-gate-1-1-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            .runtime/gestionpisos-gate11-job.json
+            .runtime/openclaw-gate11-context.txt
+            results/gestionpisos/gestionpisos-gate11-*/result.json
+            evidence/gestionpisos/gestionpisos-gate11-*/**
+          if-no-files-found: warn
+          retention-days: 14
