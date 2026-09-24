@@ -245,6 +245,16 @@ def openclaw_command(
             path = powershell_shim
             suffix = ".ps1"
 
+    if suffix == ".ps1" and "evaluate" in args:
+        # PowerShell's native argv reparsing can fragment JavaScript passed to
+        # `browser evaluate --fn`, especially when it contains embedded
+        # quotes. Invoke OpenClaw's Node entrypoint directly for this one
+        # subcommand so Python preserves the function source as one argv item.
+        node_entry = path.parent / "node_modules" / "openclaw" / "openclaw.mjs"
+        node = shutil.which("node.exe") or shutil.which("node")
+        if node_entry.is_file() and node:
+            return [node, str(node_entry), *args]
+
     if suffix == ".ps1":
         powershell = shutil.which("powershell.exe") or shutil.which("powershell")
         if not powershell:
