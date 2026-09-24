@@ -16,6 +16,9 @@ from executor import (
     project_browser_color,
     project_browser_port,
     project_browser_profile,
+    project_operational_actor_color,
+    project_operational_actor_port,
+    project_operational_actor_profile,
     run_process_captured,
     snapshot_semantics,
 )
@@ -297,6 +300,15 @@ class BrowserReadinessTests(unittest.TestCase):
         self.assertEqual(
             project_browser_color("gestionpisos", "authenticated_reuse"),
             "#D97706",
+        )
+        self.assertEqual(
+            project_operational_actor_profile("gestionpisos"),
+            "qa-gestionpisos-actor",
+        )
+        self.assertEqual(project_operational_actor_port("gestionpisos"), 18893)
+        self.assertEqual(
+            project_operational_actor_color("gestionpisos"),
+            "#0EA5E9",
         )
 
     def test_session_mode_defaults_to_public(self):
