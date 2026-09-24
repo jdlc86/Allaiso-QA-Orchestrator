@@ -1,6 +1,6 @@
 {
   "protocol_version": "0.1",
-  "request_id": "gestionpisos-gate-1-1-checklist-20260924-03",
+  "request_id": "gestionpisos-gate-1-1-checklist-20260924-04",
   "project_id": "gestionpisos",
   "action": "run_controlled_checklist_gate_1_1",
   "action_family": "workflow_checklist_gate_1_1",
@@ -14,5 +14,5 @@
     "bulk_operations": false,
     "non_fixture_writes": false
   },
-  "notes": "Retry after wrapping OpenClaw evaluate payload as one single-line async function argument. Runtime request_key is generated from the GitHub Actions run id."
+  "notes": "Retry using OpenClaw's Node entrypoint directly for browser evaluate on Windows, avoiding PowerShell argv reparsing. Runtime request_key is generated from the GitHub Actions run id."
 }
