@@ -2,7 +2,7 @@
   "protocol_version": "0.1",
   "project_id": "gestionpisos",
   "environment": "test",
-  "enabled": false,
+  "enabled": true,
   "write_scope": "fixtures_only",
   "allowed_action_families": [
     "workflow_checklist_gate_1_1"
@@ -32,7 +32,7 @@
     "non_fixture_write"
   ],
   "notes": [
-    "Stage C0 policy scaffold only. Writes remain disabled until a later reviewed PR explicitly enables one implemented action family.",
+    "Stage C1 activation: controlled writes are enabled only for the allowlisted workflow_checklist_gate_1_1 fixture action.",
     "C1 implementation may be merged while enabled remains false; activation is a separate reviewed change.",
     "Fixture identifiers were verified read-only against Supabase production-as-test on 2026-09-24.",
     "No credentials, MFA material, email addresses, user IDs, cookies, or browser storage are stored here."
