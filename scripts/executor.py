@@ -601,41 +601,38 @@ class Browser:
                 f"No color is reserved for isolated profile {self.profile!r}."
             )
 
-        # Do not pass a JSON object through the Windows PowerShell npm shim.
-        # PowerShell strips the object's inner quotes before the value reaches
-        # OpenClaw (for example {"cdpPort":18892} becomes
-        # {cdpPort:18892}), which makes --strict-json fail. Configure scalar
-        # paths independently instead; this is also supported by OpenClaw's
-        # config-set path semantics.
-        rc, stdout, stderr, _ = self.run_cli(
-            [
-                "config",
-                "set",
-                config_path,
-                str(self.profile_port),
-                "--strict-json",
-            ],
-            30000,
-            False,
-        )
-        if rc != 0:
-            detail = stderr or stdout or "no diagnostic output"
-            raise InfrastructureFailure(
-                f"OpenClaw could not provision cdpPort for isolated profile "
-                f"{self.profile!r} in local config (rc={rc}): {detail}"
+        # Do not pass a structured JSON value through the Windows PowerShell
+        # npm shim: inner quotes are lost before OpenClaw receives the argument.
+        # Also do not create required profile fields one at a time because the
+        # config writer validates the whole profile after each write. A
+        # config-shaped patch file preserves quoting and applies cdpPort +
+        # color atomically.
+        patch_payload = {
+            "browser": {
+                "profiles": {
+                    self.profile: {
+                        "cdpPort": self.profile_port,
+                        "color": self.profile_color,
+                    }
+                }
+            }
+        }
+        with tempfile.TemporaryDirectory(prefix="allaiso-openclaw-profile-") as temp_dir:
+            patch_path = Path(temp_dir) / "profile.patch.json"
+            patch_path.write_text(
+                json.dumps(patch_payload, ensure_ascii=False) + "\n",
+                encoding="utf-8",
             )
-
-        color_path = f"browser.profiles.{self.profile}.color"
-        rc, stdout, stderr, _ = self.run_cli(
-            ["config", "set", color_path, self.profile_color],
-            30000,
-            False,
-        )
+            rc, stdout, stderr, _ = self.run_cli(
+                ["config", "patch", "--file", str(patch_path)],
+                30000,
+                False,
+            )
         if rc != 0:
             detail = stderr or stdout or "no diagnostic output"
             raise InfrastructureFailure(
-                f"OpenClaw could not provision color for isolated profile "
-                f"{self.profile!r} in local config (rc={rc}): {detail}"
+                f"OpenClaw could not provision isolated profile "
+                f"{self.profile!r} atomically in local config (rc={rc}): {detail}"
             )
 
         self.wait_for_status()
