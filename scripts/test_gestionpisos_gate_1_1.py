@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import json
 import unittest
+from unittest import mock
 
 from executor import BlockedFailure
 from gestionpisos_gate_1_1 import (
     EXPECTED_ACTION,
     GATE,
     _gate_payload,
+    evaluate_fixed,
     build_apply_script,
     build_prepare_script,
     build_verify_script,
@@ -48,6 +50,20 @@ class GatePayloadTests(unittest.TestCase):
     def test_rejects_unrelated_json(self):
         self.assertIsNone(_gate_payload({"ok": True, "result": 2}))
 
+
+class EvaluateInvocationTests(unittest.TestCase):
+    def test_uses_global_browser_timeout_without_evaluate_specific_flag(self):
+        browser = mock.Mock()
+        browser.require.side_effect = [
+            ("", None),
+            ('{"gate":"workflow_checklist_gate_1_1","phase":"test","ok":true}', {"gate": "workflow_checklist_gate_1_1", "phase": "test", "ok": True}),
+        ]
+        payload = evaluate_fixed(browser, "tab-label", "() => ({})", 30000)
+        self.assertTrue(payload["ok"])
+        evaluate_call = browser.require.call_args_list[1]
+        args = evaluate_call.args[0]
+        self.assertEqual(args[:2], ["evaluate", "--fn"])
+        self.assertNotIn("--timeout-ms", args)
 
 class FixedJavascriptTests(unittest.TestCase):
     def test_prepare_script_is_fixed_to_official_rpc_and_fixture(self):

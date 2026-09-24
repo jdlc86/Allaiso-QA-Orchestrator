@@ -78,8 +78,10 @@ def evaluate_fixed(
     timeout_ms: int = 30000,
 ) -> dict[str, Any]:
     browser.require(["focus", label], 30000)
+    # Browser.require already applies OpenClaw's global --timeout option.
+    # OpenClaw 2026.5.12 does not expose an evaluate-specific --timeout-ms flag.
     stdout, parsed = browser.require(
-        ["evaluate", "--timeout-ms", str(timeout_ms), "--fn", body],
+        ["evaluate", "--fn", body],
         timeout_ms + 5000,
         True,
     )
