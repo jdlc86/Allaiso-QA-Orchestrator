@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 from executor import (
     BlockedFailure,
     Browser,
+    authorize_controlled_write,
     InfrastructureFailure,
     classify_gestionpisos_auth_snapshot,
     job_session_mode,
@@ -90,6 +91,63 @@ class AuthenticatedSessionClassificationTests(unittest.TestCase):
             classify_gestionpisos_auth_snapshot("GestionPisos", ""),
             "unknown",
         )
+
+
+class ControlledWriteAuthorizationTests(unittest.TestCase):
+    def base_job(self):
+        return {
+            "project_id": "gestionpisos",
+            "environment": "test",
+            "session_mode": "authenticated_reuse",
+            "controlled_write": {
+                "write_scope": "fixtures_only",
+                "action_family": "workflow_checklist_gate_1_1",
+                "fixture_key": "refpiso1_hab1_active_occupancy",
+                "request_key": "qa-checklist-0001",
+            },
+        }
+
+    def test_repository_policy_keeps_controlled_writes_disabled(self):
+        with self.assertRaisesRegex(BlockedFailure, "Controlled writes are disabled"):
+            authorize_controlled_write(self.base_job())
+
+    def test_enabled_policy_returns_only_allowlisted_fixture(self):
+        policy = {
+            "protocol_version": "0.1",
+            "project_id": "gestionpisos",
+            "environment": "test",
+            "enabled": True,
+            "write_scope": "fixtures_only",
+            "allowed_action_families": ["workflow_checklist_gate_1_1"],
+            "fixtures": {
+                "refpiso1_hab1_active_occupancy": {
+                    "property_id": "property-fixture",
+                    "room_id": "room-fixture",
+                    "occupancy_id": "occupancy-fixture",
+                }
+            },
+        }
+        with patch("executor.load_project_write_policy", return_value=policy):
+            fixture = authorize_controlled_write(self.base_job())
+        self.assertEqual(fixture["property_id"], "property-fixture")
+        self.assertEqual(fixture["room_id"], "room-fixture")
+        self.assertEqual(fixture["occupancy_id"], "occupancy-fixture")
+
+    def test_enabled_policy_rejects_non_allowlisted_fixture(self):
+        job = self.base_job()
+        job["controlled_write"]["fixture_key"] = "arbitrary-property"
+        policy = {
+            "protocol_version": "0.1",
+            "project_id": "gestionpisos",
+            "environment": "test",
+            "enabled": True,
+            "write_scope": "fixtures_only",
+            "allowed_action_families": ["workflow_checklist_gate_1_1"],
+            "fixtures": {},
+        }
+        with patch("executor.load_project_write_policy", return_value=policy):
+            with self.assertRaisesRegex(BlockedFailure, "fixture is not allowlisted"):
+                authorize_controlled_write(job)
 
 
 class OpenClawInvocationTests(unittest.TestCase):
