@@ -4,214 +4,38 @@
   "title": "Allaiso QA Job",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "protocol_version",
-    "job_id",
-    "run_id",
-    "project_id",
-    "requested_by",
-    "objective",
-    "environment",
-    "mode",
-    "assertions",
-    "evidence",
-    "safety"
-  ],
+  "required": ["protocol_version", "job_id", "run_id", "project_id", "requested_by", "objective", "environment", "mode", "assertions", "evidence", "safety"],
   "properties": {
-    "protocol_version": {
-      "type": "string",
-      "const": "0.1"
-    },
-    "job_id": {
-      "type": "string",
-      "minLength": 8
-    },
-    "run_id": {
-      "type": "string",
-      "minLength": 8
-    },
-    "project_id": {
-      "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9_-]*$"
-    },
-    "requested_by": {
-      "type": "string",
-      "minLength": 1
-    },
-    "objective": {
-      "type": "string",
-      "minLength": 1
-    },
-    "environment": {
-      "type": "string",
-      "enum": [
-        "local",
-        "development",
-        "staging",
-        "test",
-        "production"
-      ]
-    },
-    "mode": {
-      "type": "string",
-      "enum": [
-        "scenario",
-        "steps"
-      ]
-    },
-    "session_mode": {
-      "type": "string",
-      "enum": [
-        "public",
-        "authenticated_reuse"
-      ],
-      "default": "public"
-    },
-    "preconditions": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "default": []
-    },
-    "scenario": {
-      "type": "string"
-    },
-    "steps": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": [
-          "id",
-          "action"
-        ],
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "action": {
-            "type": "string"
-          },
-          "expect": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "assertions": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "string"
-      }
-    },
-    "diagnostics": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
-      "default": []
-    },
-    "evidence": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "enum": [
-          "screenshot",
-          "console",
-          "network_metadata",
-          "dom_snapshot",
-          "trace",
-          "video"
-        ]
-      }
-    },
-    "timeout_seconds": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 7200,
-      "default": 900
-    },
+    "protocol_version": {"type": "string", "const": "0.1"},
+    "job_id": {"type": "string", "minLength": 8},
+    "run_id": {"type": "string", "minLength": 8},
+    "project_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$"},
+    "requested_by": {"type": "string", "minLength": 1},
+    "objective": {"type": "string", "minLength": 1},
+    "environment": {"type": "string", "enum": ["local", "development", "staging", "test", "production"]},
+    "mode": {"type": "string", "enum": ["scenario", "steps"]},
+    "session_mode": {"type": "string", "enum": ["public", "authenticated_reuse"], "default": "public"},
+    "preconditions": {"type": "array", "items": {"type": "string"}, "default": []},
+    "scenario": {"type": "string"},
+    "steps": {"type": "array", "items": {"type": "object", "required": ["id", "action"], "properties": {"id": {"type": "string"}, "action": {"type": "string"}, "expect": {"type": "string"}}, "additionalProperties": false}},
+    "assertions": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "diagnostics": {"type": "array", "items": {"type": "string"}, "default": []},
+    "evidence": {"type": "array", "items": {"type": "string", "enum": ["screenshot", "console", "network_metadata", "dom_snapshot", "trace", "video"]}},
+    "controlled_write": {"type": "object", "additionalProperties": false, "required": ["write_scope", "action_family", "fixture_key", "request_key"], "properties": {"write_scope": {"type": "string", "const": "fixtures_only"}, "action_family": {"type": "string", "minLength": 1, "maxLength": 96}, "fixture_key": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]*$", "maxLength": 96}, "request_key": {"type": "string", "minLength": 8, "maxLength": 160}}},
+    "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 7200, "default": 900},
     "safety": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "destructive_actions",
-        "production_writes"
-      ],
+      "required": ["destructive_actions", "production_writes"],
       "properties": {
-        "destructive_actions": {
-          "type": "boolean"
-        },
-        "production_writes": {
-          "type": "boolean"
-        },
-        "notes": {
-          "type": "string"
-        }
-      }
-    },
-    "controlled_write": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "write_scope",
-        "action_family",
-        "fixture_key",
-        "request_key"
-      ],
-      "properties": {
-        "write_scope": {
-          "type": "string",
-          "const": "fixtures_only"
-        },
-        "action_family": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 96
-        },
-        "fixture_key": {
-          "type": "string",
-          "pattern": "^[a-z0-9][a-z0-9_-]*$",
-          "maxLength": 96
-        },
-        "request_key": {
-          "type": "string",
-          "minLength": 8,
-          "maxLength": 160
-        }
+        "destructive_actions": {"type": "boolean"},
+        "production_writes": {"type": "boolean"},
+        "notes": {"type": "string"}
       }
     }
   },
   "allOf": [
-    {
-      "if": {
-        "properties": {
-          "mode": {
-            "const": "scenario"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "scenario"
-        ]
-      }
-    },
-    {
-      "if": {
-        "properties": {
-          "mode": {
-            "const": "steps"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "steps"
-        ]
-      }
-    }
+    {"if": {"properties": {"mode": {"const": "scenario"}}}, "then": {"required": ["scenario"]}},
+    {"if": {"properties": {"mode": {"const": "steps"}}}, "then": {"required": ["steps"]}}
   ]
 }
