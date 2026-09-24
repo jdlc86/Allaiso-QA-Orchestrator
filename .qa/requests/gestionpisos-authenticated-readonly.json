@@ -1,6 +1,6 @@
 {
   "protocol_version": "0.1",
-  "request_id": "gestionpisos-auth-readonly-20260924-04",
+  "request_id": "gestionpisos-auth-readonly-20260924-05",
   "project_id": "gestionpisos",
   "action": "run_authenticated_readonly_probe",
   "session_mode": "authenticated_reuse",
@@ -12,5 +12,5 @@
     "production_writes": false,
     "destructive_actions": false
   },
-  "notes": "Retry after explicit Gateway restart following atomic profile provisioning. No credentials, tokens, TOTP seed, cookies, or storage data."
+  "notes": "Recheck after successful one-time manual login in qa-gestionpisos-auth. No credentials, tokens, TOTP seed, cookies, or storage data."
 }
