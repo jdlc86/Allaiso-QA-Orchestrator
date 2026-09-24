@@ -288,6 +288,7 @@ class BrowserReadinessTests(unittest.TestCase):
             return (0, "Updated", "", None)
 
         browser.run_cli = Mock(side_effect=run_cli)
+        browser.ensure_gateway = Mock()
         browser.wait_for_status = Mock(return_value={
             "running": False,
             "cdpReady": False,
@@ -309,6 +310,7 @@ class BrowserReadinessTests(unittest.TestCase):
                 }
             },
         )
+        browser.ensure_gateway.assert_called_once_with()
         browser.wait_for_status.assert_called_once_with()
 
     def test_wait_for_status_retries_gateway_reload(self):
