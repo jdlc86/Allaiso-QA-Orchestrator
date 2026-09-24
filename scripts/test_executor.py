@@ -277,6 +277,7 @@ class BrowserReadinessTests(unittest.TestCase):
                 {"ok": False, "error": {"message": "Config path not found: browser.profiles.qa-gestionpisos-public.cdpPort"}},
             ),
             (0, "Updated", "", None),
+            (0, "Updated", "", None),
         ])
         browser.wait_for_status = Mock(return_value={
             "running": False,
@@ -285,15 +286,24 @@ class BrowserReadinessTests(unittest.TestCase):
 
         browser.ensure_profile()
 
-        self.assertEqual(browser.run_cli.call_count, 2)
+        self.assertEqual(browser.run_cli.call_count, 3)
         self.assertEqual(
             browser.run_cli.call_args_list[1].args[0],
             [
                 "config",
                 "set",
-                "browser.profiles.qa-gestionpisos-public",
-                '{"cdpPort":18891,"color":"#8B5CF6"}',
+                "browser.profiles.qa-gestionpisos-public.cdpPort",
+                "18891",
                 "--strict-json",
+            ],
+        )
+        self.assertEqual(
+            browser.run_cli.call_args_list[2].args[0],
+            [
+                "config",
+                "set",
+                "browser.profiles.qa-gestionpisos-public.color",
+                "#8B5CF6",
             ],
         )
         browser.wait_for_status.assert_called_once_with()
