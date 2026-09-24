@@ -79,9 +79,15 @@ def evaluate_fixed(
 ) -> dict[str, Any]:
     browser.require(["focus", label], 30000)
     # Browser.require already applies OpenClaw's global --timeout option.
-    # OpenClaw 2026.5.12 does not expose an evaluate-specific --timeout-ms flag.
+    # OpenClaw 2026.5.12 expects --fn to receive one function expression.
+    # Keep it single-line so the Windows PowerShell npm shim preserves it as
+    # one argv item instead of fragmenting multiline JavaScript.
+    compact_body = " ".join(
+        line.strip() for line in body.splitlines() if line.strip()
+    )
+    browser_fn = f"async () => {{ {compact_body} }}"
     stdout, parsed = browser.require(
-        ["evaluate", "--fn", body],
+        ["evaluate", "--fn", browser_fn],
         timeout_ms + 5000,
         True,
     )
