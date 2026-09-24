@@ -1,0 +1,17 @@
+{
+  "protocol_version": "0.1",
+  "request_id": "gestionpisos-actor-auth-bootstrap-20260924-01",
+  "project_id": "gestionpisos",
+  "action": "open_manual_operational_actor_authentication",
+  "profile": "qa-gestionpisos-actor",
+  "intended_fixture": "refpiso1_hab1_active_occupancy",
+  "requested_by": "chatgpt-orchestrator",
+  "requested_on": "2026-09-24",
+  "safety": {
+    "credential_entry_by_automation": false,
+    "mfa_entry_by_automation": false,
+    "production_writes": false,
+    "destructive_actions": false
+  },
+  "notes": "Opens the isolated actor Chrome profile only. Human authenticates directly as the active tenant of the allowlisted occupancy; no credentials, MFA material, cookies, tokens, or storage are uploaded."
+}
