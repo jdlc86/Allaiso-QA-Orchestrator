@@ -2,6 +2,11 @@ name: GestionPisos Authenticated Readonly
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".qa/requests/gestionpisos-authenticated-readonly.json"
   pull_request:
     paths:
       - ".github/workflows/gestionpisos-authenticated-readonly.yml"
@@ -59,7 +64,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   authenticated-readonly:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: [self-hosted, allaiso-qa]
     timeout-minutes: 10
 
