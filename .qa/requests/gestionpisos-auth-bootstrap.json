@@ -1,0 +1,17 @@
+{
+  "protocol_version": "0.1",
+  "request_id": "gestionpisos-auth-bootstrap-20260924-01",
+  "project_id": "gestionpisos",
+  "action": "open_manual_authentication_tab",
+  "session_mode": "authenticated_reuse",
+  "requested_by": "chatgpt-orchestrator",
+  "requested_on": "2026-09-24",
+  "safety": {
+    "credential_entry_by_automation": false,
+    "mfa_entry_by_automation": false,
+    "production_writes": false,
+    "destructive_actions": false,
+    "screenshot_during_auth": false
+  },
+  "notes": "Open the isolated QA profile for one-time human login/MFA. Leave the tab open and persist the browser session locally."
+}
