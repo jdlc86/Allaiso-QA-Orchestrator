@@ -1,0 +1,39 @@
+{
+  "protocol_version": "0.1",
+  "project_id": "gestionpisos",
+  "environment": "test",
+  "enabled": false,
+  "write_scope": "fixtures_only",
+  "allowed_action_families": [
+    "workflow_checklist_gate_1_1"
+  ],
+  "fixtures": {
+    "refpiso1_hab1_active_occupancy": {
+      "property_id": "3518ddd8-5062-4047-ab1e-0f098ca1e150",
+      "property_name": "REFPISO1",
+      "property_required_status": "active",
+      "room_id": "e0e94ab3-4e97-49e6-8280-27cc7e55248b",
+      "room_label": "REFPISO1_HAB1",
+      "room_required_status": "active",
+      "occupancy_id": "149623e6-0b7e-431d-b9b1-282951e43262",
+      "occupancy_required_status": "active",
+      "occupancy_requires_linked_user": true
+    }
+  },
+  "required_controls": {
+    "request_key": true,
+    "precondition_check": true,
+    "post_action_evidence": true
+  },
+  "forbidden_action_families": [
+    "permanent_delete",
+    "account_permission_change",
+    "bulk_operation",
+    "non_fixture_write"
+  ],
+  "notes": [
+    "Stage C0 policy scaffold only. Writes remain disabled until a later reviewed PR explicitly enables one implemented action family.",
+    "Fixture identifiers were verified read-only against Supabase production-as-test on 2026-09-24.",
+    "No credentials, MFA material, email addresses, user IDs, cookies, or browser storage are stored here."
+  ]
+}
