@@ -601,17 +601,18 @@ class Browser:
                 f"No color is reserved for isolated profile {self.profile!r}."
             )
 
-        profile_path = f"browser.profiles.{self.profile}"
-        profile_value = json.dumps(
-            {"cdpPort": self.profile_port, "color": self.profile_color},
-            separators=(",", ":"),
-        )
+        # Do not pass a JSON object through the Windows PowerShell npm shim.
+        # PowerShell strips the object's inner quotes before the value reaches
+        # OpenClaw (for example {"cdpPort":18892} becomes
+        # {cdpPort:18892}), which makes --strict-json fail. Configure scalar
+        # paths independently instead; this is also supported by OpenClaw's
+        # config-set path semantics.
         rc, stdout, stderr, _ = self.run_cli(
             [
                 "config",
                 "set",
-                profile_path,
-                profile_value,
+                config_path,
+                str(self.profile_port),
                 "--strict-json",
             ],
             30000,
@@ -620,7 +621,20 @@ class Browser:
         if rc != 0:
             detail = stderr or stdout or "no diagnostic output"
             raise InfrastructureFailure(
-                f"OpenClaw could not provision isolated profile "
+                f"OpenClaw could not provision cdpPort for isolated profile "
+                f"{self.profile!r} in local config (rc={rc}): {detail}"
+            )
+
+        color_path = f"browser.profiles.{self.profile}.color"
+        rc, stdout, stderr, _ = self.run_cli(
+            ["config", "set", color_path, self.profile_color],
+            30000,
+            False,
+        )
+        if rc != 0:
+            detail = stderr or stdout or "no diagnostic output"
+            raise InfrastructureFailure(
+                f"OpenClaw could not provision color for isolated profile "
                 f"{self.profile!r} in local config (rc={rc}): {detail}"
             )
 
