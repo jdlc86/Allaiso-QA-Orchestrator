@@ -107,9 +107,25 @@ class ControlledWriteAuthorizationTests(unittest.TestCase):
             },
         }
 
-    def test_repository_policy_keeps_controlled_writes_disabled(self):
-        with self.assertRaisesRegex(BlockedFailure, "Controlled writes are disabled"):
-            authorize_controlled_write(self.base_job())
+    def test_disabled_policy_rejects_controlled_writes(self):
+        policy = {
+            "protocol_version": "0.1",
+            "project_id": "gestionpisos",
+            "environment": "test",
+            "enabled": False,
+            "write_scope": "fixtures_only",
+            "allowed_action_families": ["workflow_checklist_gate_1_1"],
+            "fixtures": {
+                "refpiso1_hab1_active_occupancy": {
+                    "property_id": "property-fixture",
+                    "room_id": "room-fixture",
+                    "occupancy_id": "occupancy-fixture",
+                }
+            },
+        }
+        with patch("executor.load_project_write_policy", return_value=policy):
+            with self.assertRaisesRegex(BlockedFailure, "Controlled writes are disabled"):
+                authorize_controlled_write(self.base_job())
 
     def test_enabled_policy_returns_only_allowlisted_fixture(self):
         policy = {

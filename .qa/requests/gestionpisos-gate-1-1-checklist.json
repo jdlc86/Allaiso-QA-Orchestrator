@@ -1,0 +1,18 @@
+{
+  "protocol_version": "0.1",
+  "request_id": "gestionpisos-gate-1-1-checklist-20260924-01",
+  "project_id": "gestionpisos",
+  "action": "run_controlled_checklist_gate_1_1",
+  "action_family": "workflow_checklist_gate_1_1",
+  "fixture_key": "refpiso1_hab1_active_occupancy",
+  "requested_by": "chatgpt-orchestrator",
+  "requested_on": "2026-09-24",
+  "safety": {
+    "credentials": false,
+    "mfa_material": false,
+    "destructive_actions": false,
+    "bulk_operations": false,
+    "non_fixture_writes": false
+  },
+  "notes": "Versioned trigger for the first real Stage C1 Checklist run. Runtime request_key is generated from the GitHub Actions run id."
+}
