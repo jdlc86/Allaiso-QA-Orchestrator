@@ -52,18 +52,30 @@ class GatePayloadTests(unittest.TestCase):
 
 
 class EvaluateInvocationTests(unittest.TestCase):
-    def test_uses_global_browser_timeout_without_evaluate_specific_flag(self):
+    def test_uses_single_line_async_function_and_global_timeout(self):
         browser = mock.Mock()
         browser.require.side_effect = [
             ("", None),
             ('{"gate":"workflow_checklist_gate_1_1","phase":"test","ok":true}', {"gate": "workflow_checklist_gate_1_1", "phase": "test", "ok": True}),
         ]
-        payload = evaluate_fixed(browser, "tab-label", "() => ({})", 30000)
+        payload = evaluate_fixed(
+            browser,
+            "tab-label",
+            """
+            const value = await Promise.resolve(1);
+            return {gate: "workflow_checklist_gate_1_1", phase: "test", ok: value === 1};
+            """,
+            30000,
+        )
         self.assertTrue(payload["ok"])
         evaluate_call = browser.require.call_args_list[1]
         args = evaluate_call.args[0]
         self.assertEqual(args[:2], ["evaluate", "--fn"])
         self.assertNotIn("--timeout-ms", args)
+        self.assertTrue(args[2].startswith("async () => { "))
+        self.assertTrue(args[2].endswith(" }"))
+        self.assertNotIn("\n", args[2])
+        self.assertIn("await Promise.resolve(1)", args[2])
 
 class FixedJavascriptTests(unittest.TestCase):
     def test_prepare_script_is_fixed_to_official_rpc_and_fixture(self):
