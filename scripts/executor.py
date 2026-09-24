@@ -48,6 +48,9 @@ PROJECT_POLICIES = {
         "authenticated_browser_profile": "qa-gestionpisos-auth",
         "authenticated_browser_cdp_port": 18892,
         "authenticated_browser_color": "#D97706",
+        "operational_actor_browser_profile": "qa-gestionpisos-actor",
+        "operational_actor_browser_cdp_port": 18893,
+        "operational_actor_browser_color": "#0EA5E9",
     },
 }
 
@@ -368,6 +371,42 @@ def project_browser_color(project_id: str, session_mode: str = "public") -> str:
     if not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
         raise BlockedFailure(
             f"Project {project_id!r} has an invalid managed-browser color policy."
+        )
+    return color
+
+
+def project_operational_actor_profile(project_id: str) -> str:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+    profile = str(policy.get("operational_actor_browser_profile") or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", profile):
+        raise BlockedFailure(
+            f"Project {project_id!r} has an invalid operational actor browser profile policy."
+        )
+    return profile
+
+
+def project_operational_actor_port(project_id: str) -> int:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+    port = policy.get("operational_actor_browser_cdp_port")
+    if not isinstance(port, int) or not 18800 <= port <= 18899:
+        raise BlockedFailure(
+            f"Project {project_id!r} has an invalid operational actor CDP port policy."
+        )
+    return port
+
+
+def project_operational_actor_color(project_id: str) -> str:
+    policy = PROJECT_POLICIES.get(project_id)
+    if policy is None:
+        raise BlockedFailure(f"Project is not allowlisted: {project_id}")
+    color = str(policy.get("operational_actor_browser_color") or "").strip()
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", color):
+        raise BlockedFailure(
+            f"Project {project_id!r} has an invalid operational actor browser color policy."
         )
     return color
 
