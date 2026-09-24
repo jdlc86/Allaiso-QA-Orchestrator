@@ -197,6 +197,44 @@ class OpenClawInvocationTests(unittest.TestCase):
             ],
         )
 
+    def test_windows_evaluate_uses_node_entrypoint_directly(self):
+        openclaw_ps1 = r"C:\Users\julop\AppData\Roaming\npm\openclaw.ps1"
+        node_exe = r"C:\Program Files\nodejs\node.exe"
+        with patch("executor.Path.is_file", return_value=True), patch(
+            "executor.shutil.which",
+            side_effect=lambda name: (
+                node_exe
+                if name in {"node.exe", "node"}
+                else r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+                if name in {"powershell.exe", "powershell"}
+                else None
+            ),
+        ):
+            command = openclaw_command(
+                openclaw_ps1,
+                [
+                    "browser",
+                    "--browser-profile",
+                    "qa-gestionpisos-auth",
+                    "--json",
+                    "evaluate",
+                    "--fn",
+                    'async () => { return "ok"; }',
+                ],
+                platform_name="nt",
+            )
+
+        self.assertEqual(command[0], node_exe)
+        self.assertEqual(
+            command[1],
+            r"C:\Users\julop\AppData\Roaming\npm\node_modules\openclaw\openclaw.mjs",
+        )
+        self.assertEqual(command[2], "browser")
+        self.assertIn("evaluate", command)
+        self.assertEqual(command[-2], "--fn")
+        self.assertEqual(command[-1], 'async () => { return "ok"; }')
+        self.assertNotIn("-File", command)
+
     def test_non_windows_invokes_binary_directly(self):
         command = openclaw_command(
             "/usr/local/bin/openclaw",
