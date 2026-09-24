@@ -45,6 +45,13 @@ def main() -> None:
     if not isinstance(j["assertions"], list) or not j["assertions"]: fail("assertions must be non-empty")
     safety = j["safety"]
     if not isinstance(safety, dict) or not all(k in safety for k in ("destructive_actions","production_writes")): fail("invalid safety block")
+    controlled = j.get("controlled_write")
+    if controlled is not None:
+        if not isinstance(controlled, dict): fail("controlled_write must be an object")
+        required_controlled = ("write_scope","action_family","fixture_key","request_key")
+        if not all(k in controlled for k in required_controlled): fail("invalid controlled_write block")
+        if controlled["write_scope"] != "fixtures_only": fail("controlled_write.write_scope must be fixtures_only")
+        if not isinstance(controlled["request_key"], str) or not 8 <= len(controlled["request_key"]) <= 160: fail("invalid controlled_write.request_key")
     print(json.dumps({"valid": True, "job_id": j["job_id"], "run_id": j["run_id"], "project_id": j["project_id"]}))
 
 if __name__ == "__main__":

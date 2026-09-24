@@ -83,6 +83,69 @@ def repo_root() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+def load_project_write_policy(project_id: str) -> dict[str, Any]:
+    path = repo_root() / "projects" / project_id / "write-policy.json"
+    if not path.is_file():
+        raise BlockedFailure(
+            f"Controlled write policy is not configured for project {project_id!r}."
+        )
+    try:
+        policy = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BlockedFailure(
+            f"Controlled write policy for project {project_id!r} is unreadable."
+        ) from exc
+    if not isinstance(policy, dict):
+        raise BlockedFailure("Controlled write policy root must be an object.")
+    if policy.get("protocol_version") != PROTOCOL_VERSION:
+        raise BlockedFailure("Controlled write policy protocol_version mismatch.")
+    if policy.get("project_id") != project_id:
+        raise BlockedFailure("Controlled write policy project_id mismatch.")
+    return policy
+
+
+def authorize_controlled_write(job: dict[str, Any]) -> dict[str, Any]:
+    request = job.get("controlled_write")
+    if request is None:
+        return {}
+    if not isinstance(request, dict):
+        raise BlockedFailure("controlled_write must be an object.")
+
+    project_id = str(job.get("project_id") or "")
+    policy = load_project_write_policy(project_id)
+    if policy.get("enabled") is not True:
+        raise BlockedFailure(
+            f"Controlled writes are disabled for project {project_id!r}."
+        )
+    if job.get("environment") != policy.get("environment"):
+        raise BlockedFailure("Controlled write environment is not allowlisted.")
+    if job_session_mode(job) != "authenticated_reuse":
+        raise BlockedFailure("Controlled writes require authenticated_reuse session mode.")
+    if request.get("write_scope") != policy.get("write_scope"):
+        raise BlockedFailure("Controlled write scope is not allowlisted.")
+
+    action_family = str(request.get("action_family") or "")
+    allowed_families = policy.get("allowed_action_families") or []
+    if action_family not in allowed_families:
+        raise BlockedFailure(
+            f"Controlled write action family is not allowlisted: {action_family!r}."
+        )
+
+    fixture_key = str(request.get("fixture_key") or "")
+    fixtures = policy.get("fixtures") or {}
+    fixture = fixtures.get(fixture_key) if isinstance(fixtures, dict) else None
+    if not isinstance(fixture, dict):
+        raise BlockedFailure(
+            f"Controlled write fixture is not allowlisted: {fixture_key!r}."
+        )
+
+    request_key = str(request.get("request_key") or "")
+    if len(request_key) < 8 or len(request_key) > 160:
+        raise BlockedFailure("Controlled write request_key must be 8..160 characters.")
+
+    return fixture
+
+
 def load_job(path: Path) -> dict[str, Any]:
     if not path.is_file():
         raise BlockedFailure(f"Job not found: {path}")
@@ -135,6 +198,8 @@ def validate_job(job: dict[str, Any]) -> None:
         raise BlockedFailure(
             f"Authenticated session reuse is not enabled for project {project_id!r}."
         )
+
+    authorize_controlled_write(job)
 
 
 def find_openclaw() -> str:

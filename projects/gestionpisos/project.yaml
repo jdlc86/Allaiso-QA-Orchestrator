@@ -1,7 +1,7 @@
 protocol_version: "0.1"
 project_id: gestionpisos
 display_name: "GestionPisos / Allaiso"
-integration_status: "AUTH_READONLY_REUSE_IMPLEMENTED_UNVERIFIED"
+integration_status: "AUTH_READONLY_REUSE_VERIFIED_STAGE_C0_LOCKED"
 
 allowed_environments:
   test:
@@ -21,6 +21,8 @@ safety:
   authentication_mode: "isolated_session_reuse_read_only"
   credential_entry_allowed: false
   mfa_automation_allowed: false
+  controlled_writes_enabled: false
+  controlled_write_policy: "projects/gestionpisos/write-policy.json"
   allowed_url_prefixes:
     - "https://jdlc86.github.io/gestionpisos/"
 
@@ -29,7 +31,9 @@ notes:
   - "GestionPisos Public Smoke #15 passed in GitHub Actions run 35806072819 on commit 3db8b882afc45d631204e133fc5a796c7ce920d3."
   - "QA Node Handshake #16 passed in GitHub Actions run 35806072832 on the same commit."
   - "Public smoke evidence includes a real Chrome screenshot of the Allaiso access screen."
-  - "Authenticated QA is limited to the isolated qa-gestionpisos-auth profile and reusable session inspection."
+  - "Authenticated session reuse was verified E2E on 2026-09-24 by GestionPisos Authenticated Readonly #10 (run 36034141272), executor status PASSED."
+  - "Stage C0 is policy-only: controlled writes are explicitly disabled until a later reviewed PR enables one implemented action family."
+  - "Authenticated QA remains isolated in qa-gestionpisos-auth; no credentials or MFA material are stored in the repository."
   - "No password, TOTP, token, cookie, storage export, form submission, or AUT mutation is allowed by this stage."
   - "Login, MFA challenge, or MFA setup are classified as BLOCKED rather than as an Allaiso functional failure."
   - "The workflow battery in the GestionPisos repository remains the source of truth for product PASS/FAIL."
