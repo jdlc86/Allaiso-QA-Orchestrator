@@ -1,6 +1,6 @@
 {
   "protocol_version": "0.1",
-  "request_id": "gestionpisos-gate-1-1-checklist-20260924-01",
+  "request_id": "gestionpisos-gate-1-1-checklist-20260924-02",
   "project_id": "gestionpisos",
   "action": "run_controlled_checklist_gate_1_1",
   "action_family": "workflow_checklist_gate_1_1",
@@ -14,5 +14,5 @@
     "bulk_operations": false,
     "non_fixture_writes": false
   },
-  "notes": "Versioned trigger for the first real Stage C1 Checklist run. Runtime request_key is generated from the GitHub Actions run id."
+  "notes": "Retry after adapting OpenClaw 2026.5.12 evaluate syntax. Runtime request_key is generated from the GitHub Actions run id."
 }
