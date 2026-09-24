@@ -1,0 +1,102 @@
+name: GestionPisos Manual Auth Bootstrap
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - ".qa/requests/gestionpisos-auth-bootstrap.json"
+  pull_request:
+    paths:
+      - ".github/workflows/gestionpisos-auth-bootstrap.yml"
+      - "scripts/open_manual_auth_session.py"
+      - "scripts/executor.py"
+      - ".qa/requests/gestionpisos-auth-bootstrap.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gestionpisos-manual-auth-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  validation:
+    if: github.event_name == 'pull_request'
+    runs-on: [self-hosted, allaiso-qa]
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+
+      - name: Executor regression
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available." }
+          & $python.Source @args scripts/test_executor.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compile manual auth bootstrap
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available." }
+          & $python.Source @args -m py_compile scripts/open_manual_auth_session.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  bootstrap:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'push'
+    runs-on: [self-hosted, allaiso-qa]
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout control plane
+        uses: actions/checkout@v4
+
+      - name: Executor regression
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available." }
+          & $python.Source @args scripts/test_executor.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Open isolated manual authentication tab
+        shell: powershell
+        run: |
+          $python = Get-Command python -ErrorAction SilentlyContinue
+          $args = @()
+          if (-not $python) {
+            $python = Get-Command py -ErrorAction SilentlyContinue
+            $args = @("-3")
+          }
+          if (-not $python) { throw "Python is not available." }
+          & $python.Source @args scripts/open_manual_auth_session.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload bootstrap status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gestionpisos-manual-auth-bootstrap-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .runtime/manual-auth-bootstrap-result.json
+          if-no-files-found: warn
+          retention-days: 2
