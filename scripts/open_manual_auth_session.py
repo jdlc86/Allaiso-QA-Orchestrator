@@ -11,6 +11,9 @@ from executor import (
     project_browser_color,
     project_browser_port,
     project_browser_profile,
+    project_operational_actor_color,
+    project_operational_actor_port,
+    project_operational_actor_profile,
     repo_root,
     snapshot_semantics,
 )
@@ -18,12 +21,17 @@ from executor import (
 PROJECT_ID = "gestionpisos"
 SESSION_MODE = "authenticated_reuse"
 TARGET_URL = "https://jdlc86.github.io/gestionpisos/"
+PROFILE_KIND = os.environ.get("QA_AUTH_PROFILE_KIND", "manager").strip().lower()
+RESULT_FILE = os.environ.get(
+    "QA_AUTH_RESULT_FILE",
+    "manual-auth-bootstrap-result.json",
+).strip()
 
 
 def write_result(payload: dict) -> Path:
     output_dir = repo_root() / ".runtime"
     output_dir.mkdir(parents=True, exist_ok=True)
-    path = output_dir / "manual-auth-bootstrap-result.json"
+    path = output_dir / RESULT_FILE
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -33,12 +41,24 @@ def write_result(payload: dict) -> Path:
 
 def main() -> int:
     run_id = os.environ.get("GITHUB_RUN_ID", str(int(time.time())))
-    label = f"manual-auth-{run_id}"
+    label_prefix = "manual-actor-auth" if PROFILE_KIND == "actor" else "manual-auth"
+    label = f"{label_prefix}-{run_id}"
+    if PROFILE_KIND == "actor":
+        profile = project_operational_actor_profile(PROJECT_ID)
+        profile_port = project_operational_actor_port(PROJECT_ID)
+        profile_color = project_operational_actor_color(PROJECT_ID)
+    elif PROFILE_KIND == "manager":
+        profile = project_browser_profile(PROJECT_ID, SESSION_MODE)
+        profile_port = project_browser_port(PROJECT_ID, SESSION_MODE)
+        profile_color = project_browser_color(PROJECT_ID, SESSION_MODE)
+    else:
+        raise SystemExit(f"Unsupported QA_AUTH_PROFILE_KIND: {PROFILE_KIND!r}")
+
     browser = Browser(
         time.monotonic() + 300,
-        profile=project_browser_profile(PROJECT_ID, SESSION_MODE),
-        profile_port=project_browser_port(PROJECT_ID, SESSION_MODE),
-        profile_color=project_browser_color(PROJECT_ID, SESSION_MODE),
+        profile=profile,
+        profile_port=profile_port,
+        profile_color=profile_color,
     )
 
     try:
