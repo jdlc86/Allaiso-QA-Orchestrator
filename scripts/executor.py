@@ -635,6 +635,10 @@ class Browser:
                 f"{self.profile!r} atomically in local config (rc={rc}): {detail}"
             )
 
+        # Applying a config patch can restart or stop the Gateway before the
+        # new profile becomes addressable. Reassert the idempotent Gateway
+        # start here, then wait for the browser profile to appear.
+        self.ensure_gateway()
         self.wait_for_status()
 
     def status(self, timeout_ms: int = 15000) -> tuple[Optional[dict[str, Any]], str]:
